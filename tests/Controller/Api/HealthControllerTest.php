@@ -12,5 +12,9 @@ final class HealthControllerTest extends WebTestCase
         $client->request('GET', '/api/v1/health');
 
         self::assertResponseIsSuccessful();
+        self::assertJsonStringEqualsJsonString(
+            '{"status":"ok","version":"1.0"}',
+            $client->getResponse()->getContent()
+        );
     }
 }
