@@ -15,6 +15,14 @@ RUN apk add --no-cache \
         opcache \
     && apk del .build-deps
 
+
+# Install PHP Redis extension
+RUN apk add --no-cache --virtual .redis-build-deps $PHPIZE_DEPS \
+    && pecl install redis \
+    && docker-php-ext-enable redis \
+    && apk del .redis-build-deps
+
+
 COPY --from=composer:2 /usr/bin/composer /usr/local/bin/composer
 
 # Install Symfony CLI

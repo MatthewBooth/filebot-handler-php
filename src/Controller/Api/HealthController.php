@@ -16,6 +16,9 @@ final class HealthController extends AbstractController
     ]
     public function index(): JsonResponse
     {
-        return $this->json(['status' => 'ok']);
+        return $this->json([
+            'status' => 'ok',
+            'version' => '1.0',
+        ]);
     }
 }
