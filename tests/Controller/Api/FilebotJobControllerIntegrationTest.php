@@ -4,7 +4,7 @@ namespace App\Tests\Controller\Api;
 
 use Symfony\Bundle\FrameworkBundle\Test\WebTestCase;
 
-final class FilebotJobControllerTest extends WebTestCase
+final class FilebotJobControllerIntegrationTest extends WebTestCase
 {
     public function testCreateQueuesFilebotJob(): void
     {
@@ -53,6 +53,13 @@ final class FilebotJobControllerTest extends WebTestCase
         );
 
         self::assertResponseStatusCodeSame(422);
+        self::assertJson($client->getResponse()->getContent());
+
+        $response = json_decode($client->getResponse()->getContent(), true, flags: JSON_THROW_ON_ERROR);
+        self::assertSame('error', $response['status']);
+        self::assertSame('Request validation failed.', $response['message']);
+        self::assertNotEmpty($response['errors']);
+        self::assertContains('paths', array_column($response['errors'], 'field'));
     }
 
     public function testCreateRejectsInvalidLabel(): void
@@ -72,5 +79,14 @@ final class FilebotJobControllerTest extends WebTestCase
         );
 
         self::assertResponseStatusCodeSame(422);
+        self::assertJson($client->getResponse()->getContent());
+
+        $response = json_decode($client->getResponse()->getContent(), true, flags: JSON_THROW_ON_ERROR);
+        self::assertSame('error', $response['status']);
+        self::assertNotEmpty($response['errors']);
+
+        $labelErrors = array_filter($response['errors'], static fn (array $error): bool => $error['field'] === 'label');
+        self::assertNotEmpty($labelErrors);
+        self::assertNotEmpty(reset($labelErrors)['message']);
     }
 }

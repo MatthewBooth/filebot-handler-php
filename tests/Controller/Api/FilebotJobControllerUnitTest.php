@@ -6,6 +6,7 @@ use App\Controller\Api\FilebotJobController;
 use App\Dto\CreateFilebotJobRequestDto;
 use App\Message\FilebotJobMessage;
 use PHPUnit\Framework\TestCase;
+use Error;
 use RuntimeException;
 use Throwable;
 use Symfony\Component\DependencyInjection\ContainerBuilder;
@@ -25,6 +26,11 @@ final class FilebotJobControllerUnitTest extends TestCase
         });
     }
 
+    public function testCreateReturnsErrorWhenDispatchThrowsError(): void
+    {
+        $this->assertDispatchFailure(new Error('dispatch error'));
+    }
+
     private function assertDispatchFailure(Throwable $exception): void
     {
         $bus = $this->createMock(MessageBusInterface::class);
@@ -41,9 +47,10 @@ final class FilebotJobControllerUnitTest extends TestCase
             $bus,
         );
 
-        self::assertSame(400, $response->getStatusCode());
+        self::assertSame(500, $response->getStatusCode());
         self::assertSame([
             'status' => 'error',
+            'type' => $exception::class,
             'message' => $exception->getMessage(),
         ], json_decode($response->getContent(), true, flags: JSON_THROW_ON_ERROR));
     }
