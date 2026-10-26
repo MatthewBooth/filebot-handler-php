@@ -10,13 +10,11 @@ final class FilebotConfigTest extends TestCase
     public function testStoresAllConfiguredValues(): void
     {
         $config = new FilebotConfig(
-            torrentsRoot: '/media/incoming',
             storageRoot: '/media/output',
             filebotLang: 'en',
             filebotLogLevel: 'info',
             plexHost: 'http://plex.local:32400',
             plexToken: 'secret-token',
-            amcAction: 'copy',
             amcUnsorted: true,
             amcClean: false,
             amcSubtitleLang: 'en',
@@ -27,13 +25,11 @@ final class FilebotConfigTest extends TestCase
             amcMinFilesize: 100000000,
         );
 
-        self::assertSame('/media/incoming', $config->torrentsRoot);
         self::assertSame('/media/output', $config->storageRoot);
         self::assertSame('en', $config->filebotLang);
         self::assertSame('info', $config->filebotLogLevel);
         self::assertSame('http://plex.local:32400', $config->plexHost);
         self::assertSame('secret-token', $config->plexToken);
-        self::assertSame('copy', $config->amcAction);
         self::assertTrue($config->amcUnsorted);
         self::assertFalse($config->amcClean);
         self::assertSame('en', $config->amcSubtitleLang);

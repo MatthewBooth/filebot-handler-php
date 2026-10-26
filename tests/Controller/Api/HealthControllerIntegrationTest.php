@@ -8,7 +8,7 @@ final class HealthControllerIntegrationTest extends WebTestCase
 {
     public function testIndex(): void
     {
-        $client = HealthControllerIntegrationTest::createClient();
+        $client = self::createClient();
         $client->request('GET', '/api/v1/health');
 
         self::assertResponseIsSuccessful();

@@ -6,5 +6,7 @@ use App\Model\FilebotJobModel;
 
 final readonly class FilebotJobMessage
 {
-    public function __construct(public FilebotJobModel $job) { }
+    public function __construct(public FilebotJobModel $job)
+    {
+    }
 }

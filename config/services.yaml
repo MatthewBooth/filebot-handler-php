@@ -7,21 +7,19 @@
 # Put parameters here that don't need to change on each machine where the app is deployed
 # https://symfony.com/doc/current/best_practices.html#use-parameters-for-application-configuration
 parameters:
-    filebot_config_torrents_root_default: '/torrents'
-    filebot_config_storage_root_default: '/storage'
-    filebot_config_lang_default: 'en'
-    filebot_config_log_level_default: 'info'
-    filebot_config_plex_host_default: ''
-    filebot_config_plex_token_default: ''
-    filebot_config_amc_action_default: 'copy'
-    filebot_config_amc_unsorted_default: 'n'
-    filebot_config_amc_clean_default: 'y'
-    filebot_config_amc_subtitle_lang_default: 'en'
-    filebot_config_amc_movie_db_default: 'TheMovieDB'
-    filebot_config_amc_series_db_default: 'TheTVDB'
-    filebot_config_amc_anime_db_default: 'AniDB'
-    filebot_config_amc_min_length_default: '0'
-    filebot_config_amc_min_filesize_default: '0'
+    env(STORAGE_ROOT): '/storage'
+    env(FILEBOT_LANG): 'en'
+    env(FILEBOT_LOG_LEVEL): 'info'
+    env(PLEX_HOST): ''
+    env(PLEX_TOKEN): ''
+    env(AMC_UNSORTED): 'n'
+    env(AMC_CLEAN): 'y'
+    env(AMC_SUBTITLE_LANG): 'en'
+    env(AMC_MOVIE_DB): 'TheMovieDB'
+    env(AMC_SERIES_DB): 'TheTVDB'
+    env(AMC_ANIME_DB): 'AniDB'
+    env(AMC_MIN_LENGTH): '0'
+    env(AMC_MIN_FILESIZE): '0'
 
 services:
     # default configuration for services in *this* file

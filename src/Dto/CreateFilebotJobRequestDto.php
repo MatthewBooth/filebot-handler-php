@@ -14,8 +14,11 @@ final readonly class CreateFilebotJobRequestDto
         #[Assert\NotBlank]
         #[Assert\Count(min: 1)]
         #[Assert\All(constraints: [
-            new Assert\NotBlank(),
-            new Assert\Type('string')
+            new Assert\Sequentially(constraints: [
+                new Assert\NotBlank(),
+                new Assert\Type('string'),
+                new Assert\Regex(pattern: '#^/#', message: 'Path must be absolute.'),
+            ]),
         ])]
         public array $paths,
 
@@ -46,14 +49,15 @@ final readonly class CreateFilebotJobRequestDto
 
     public function toFilebotJob(): FilebotJobModel
     {
-        return new FilebotJobModel(paths: $this->paths,
+        return new FilebotJobModel(
+            paths: $this->paths,
             label: $this->label,
             order: $this->order,
             conflict: $this->conflict,
             action: $this->action,
             mediaId: $this->mediaId,
             strict: $this->strict,
-            artwork: $this->artwork
+            artwork: $this->artwork,
         );
     }
 }

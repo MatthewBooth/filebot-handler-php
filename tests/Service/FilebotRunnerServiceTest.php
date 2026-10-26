@@ -30,7 +30,7 @@ printf '%s\n' "$*" >> __INVOCATION_LOG__
 case "$*" in
     *ut_label=process-failure*) printf 'stdout test line\n'; printf 'stderr test line\n' >&2; exit 23 ;;
     *ut_label=process-noop*) printf 'Finished without processing any files\n'; exit 100 ;;
-    *73871*)
+    *ut_label=no-match-noop*)
         printf 'No missing subtitles\n'
         printf 'Failed to identify or process any files\n'
         printf 'Finished without processing any files\n'
@@ -181,7 +181,7 @@ SH;
         self::assertContainsDef($command, 'movieDB=TheMovieDB');
     }
 
-    public function testRunLogsDefaultCommandWhenNotDryRunAndNotOverwrite(): void
+    public function testRunUsesCopyActionAndConflictPolicyByDefault(): void
     {
         $logger = new InMemoryLogger();
         $service = $this->createService($logger);
@@ -247,23 +247,12 @@ SH;
         ));
     }
 
-    public function testRunAcceptsAbsolutePathOutsideConfiguredTorrentsRoot(): void
-    {
-        $path = $this->createFile('example.mkv');
-        $logger = new InMemoryLogger();
-        $config = $this->createConfig($this->temporaryRoot . '/torrents');
-        $service = new FilebotRunnerService($logger, $config, new Filesystem(), new Finder(), $this->temporaryRoot . '/logs');
-
-        $service->run(new FilebotJobModel(paths: [$path], label: 'tv'));
-
-        self::assertContainsDef($logger->records[1]['context']['command'], 'ut_dir=' . $path);
-    }
-
     public function testRunThrowsWhenFilebotExitsWithFailure(): void
     {
         $path = $this->createFile('example.mkv');
 
-        $this->expectException(\Symfony\Component\Process\Exception\ProcessFailedException::class);
+        $this->expectException(\RuntimeException::class);
+        $this->expectExceptionMessage('FileBot command failed with exit code 23.');
 
         $this->createService(new InMemoryLogger())->run(new FilebotJobModel(
             paths: [$path],
@@ -297,7 +286,7 @@ SH;
 
         $this->createService($logger)->run(new FilebotJobModel(
             paths: [$path],
-            label: 'tv',
+            label: 'no-match-noop',
             mediaId: '73871',
             action: 'copy',
         ));
@@ -338,7 +327,8 @@ SH;
     {
         $path = $this->createFile('example.mkv');
 
-        $this->expectException(\Symfony\Component\Process\Exception\ProcessFailedException::class);
+        $this->expectException(\RuntimeException::class);
+        $this->expectExceptionMessage('FileBot command failed with exit code 3.');
 
         $this->createService(new InMemoryLogger())->run(new FilebotJobModel(
             paths: [$path],
@@ -407,19 +397,17 @@ SH;
         self::assertFormatDefinition($command, 'movieFormat=/media/output/Films/');
         self::assertFormatDefinition($command, 'seriesFormat=/media/output/TV/');
         self::assertFormatDefinition($command, 'animeFormat=/media/output/TV/');
-        self::assertContainsDef($command, 'plex=http://plex.local:32400:secret-token');
+        self::assertContainsDef($command, 'plex=***');
     }
 
-    private function createConfig(?string $torrentsRoot = null): FilebotConfig
+    private function createConfig(): FilebotConfig
     {
         return new FilebotConfig(
-            torrentsRoot: $torrentsRoot ?? $this->temporaryRoot,
             storageRoot: '/media/output',
             filebotLang: 'en',
             filebotLogLevel: 'info',
             plexHost: 'http://plex.local:32400',
             plexToken: 'secret-token',
-            amcAction: 'copy',
             amcUnsorted: false,
             amcClean: false,
             amcSubtitleLang: 'en',

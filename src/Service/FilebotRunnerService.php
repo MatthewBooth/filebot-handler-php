@@ -15,7 +15,6 @@ use Symfony\Component\Filesystem\Filesystem;
 use Symfony\Component\Filesystem\Path;
 use Symfony\Component\Finder\Finder;
 use Symfony\Component\HttpFoundation\Response;
-use Symfony\Component\Process\Exception\ProcessFailedException;
 use Symfony\Component\Process\Process;
 
 final readonly class FilebotRunnerService implements FilebotRunnerInterface
@@ -30,8 +29,7 @@ final readonly class FilebotRunnerService implements FilebotRunnerInterface
         private Finder $finder,
         #[Autowire('%kernel.logs_dir%')]
         private string $logsDirectory,
-    )
-    {
+    ) {
     }
 
     public function run(FilebotJobModel $job): void
@@ -50,15 +48,17 @@ final readonly class FilebotRunnerService implements FilebotRunnerInterface
             $this->logger->info('Processing path: ' . $path);
             $this->writeJobLog($jobLogFile, $logFileWritable, 'INFO', 'Processing path: ' . $path);
 
-            if (!$this->validatePath($path)) {
+            $resolvedPath = $this->resolvePath($path);
+
+            if (!$this->filesystem->exists($resolvedPath)) {
                 throw new FileNotFoundException('Path does not exist: ' . $path, Response::HTTP_BAD_REQUEST);
             }
 
-            $command = $this->buildCommand($path, $job);
+            $command = $this->buildCommand($resolvedPath, $job);
 
             $this->logger->debug('Prepared FileBot command.', [
                 'path' => $path,
-                'command' => $command
+                'command' => $this->redactSensitiveArguments($command),
             ]);
 
             $process = new Process($command);
@@ -97,7 +97,15 @@ final readonly class FilebotRunnerService implements FilebotRunnerInterface
             $isNoop = $exitCode === self::NOOP_EXIT_CODE || $this->isExactDuplicateNoop($process) || $isNoMatch;
 
             if (!$process->isSuccessful() && !$isNoop) {
-                throw new ProcessFailedException($process);
+                $this->logger->error('FileBot command failed.', [
+                    'path' => $path,
+                    'exit_code' => $exitCode,
+                ]);
+
+                throw new RuntimeException(
+                    sprintf('FileBot command failed with exit code %d.', $exitCode ?? 1),
+                    $exitCode ?? 1,
+                );
             }
 
             $message = match (true) {
@@ -237,23 +245,16 @@ final readonly class FilebotRunnerService implements FilebotRunnerInterface
         return $exactCopyFailureCount > 0 && $finishedWithoutProcessing;
     }
 
-    private function validatePath(string $path): bool
-    {
-        return $this->filesystem->exists($this->resolvePath($path));
-    }
-
     private function generateKind(string $path): string
     {
-        $file = $this->resolvePath($path);
-
-        if (is_file($file)) {
+        if (is_file($path)) {
             return 'single';
         }
 
-        if (is_dir($file)) {
+        if (is_dir($path)) {
             $mediaFiles = (clone $this->finder)
                 ->files()
-                ->in($file)
+                ->in($path)
                 ->name(self::MEDIA_FILE_PATTERN);
             $mediaFileCount = count($mediaFiles);
 
@@ -274,9 +275,8 @@ final readonly class FilebotRunnerService implements FilebotRunnerInterface
      */
     private function buildCommand(string $path, FilebotJobModel $job): array
     {
-        $file = $this->resolvePath($path);
         $utKind = $this->generateKind($path);
-        $utTitle = basename($file);
+        $utTitle = basename($path);
 
         $command = [
             'filebot',
@@ -323,31 +323,50 @@ final readonly class FilebotRunnerService implements FilebotRunnerInterface
         $format = ltrim($format);
 
         $defs = [
-            "unsorted=" . ($this->config->amcUnsorted ? 'y' : 'n'),
-            "clean=" . ($this->config->amcClean ? 'y' : 'n'),
-            "artwork=" . ($job->artwork ? 'y' : 'n'),
-            "subtitles=" . $this->config->amcSubtitleLang,
-            "ut_dir=" . $file,
-            "ut_kind=" . $utKind,
-            "ut_label=" . $job->label,
-            "ut_title=" . $utTitle,
-            "movieDB=" . $this->config->amcMovieDb,
-            "seriesDB=" . $this->config->amcSeriesDb,
-            "animeDB=" . $this->config->amcAnimeDb,
-            "minLengthMS=" . $this->config->amcMinLength,
-            "minFileSize=" . $this->config->amcMinFilesize,
-            "movieFormat=" . $this->config->storageRoot . '/Films/' . $format,
-            "seriesFormat=" . $this->config->storageRoot . '/TV/' . $format,
-            "animeFormat=" . $this->config->storageRoot . '/TV/' . $format,
+            'unsorted=' . ($this->config->amcUnsorted ? 'y' : 'n'),
+            'clean=' . ($this->config->amcClean ? 'y' : 'n'),
+            'artwork=' . ($job->artwork ? 'y' : 'n'),
+            'subtitles=' . $this->config->amcSubtitleLang,
+            'ut_dir=' . $path,
+            'ut_kind=' . $utKind,
+            'ut_label=' . $job->label,
+            'ut_title=' . $utTitle,
+            'movieDB=' . $this->config->amcMovieDb,
+            'seriesDB=' . $this->config->amcSeriesDb,
+            'animeDB=' . $this->config->amcAnimeDb,
+            'minLengthMS=' . $this->config->amcMinLength,
+            'minFileSize=' . $this->config->amcMinFilesize,
+            'movieFormat=' . $this->config->storageRoot . '/Films/' . $format,
+            'seriesFormat=' . $this->config->storageRoot . '/TV/' . $format,
+            'animeFormat=' . $this->config->storageRoot . '/TV/' . $format,
         ];
 
         if ($this->config->plexHost && $this->config->plexToken) {
-            $defs[] = "plex=" . $this->config->plexHost . ":" . $this->config->plexToken;
+            $defs[] = 'plex=' . $this->config->plexHost . ':' . $this->config->plexToken;
         }
 
         foreach ($defs as $def) {
-            $command[] = "--def";
+            $command[] = '--def';
             $command[] = $def;
+        }
+
+        return $command;
+    }
+
+    /**
+     * @param list<string> $command
+     * @return list<string>
+     */
+    private function redactSensitiveArguments(array $command): array
+    {
+        foreach ($command as $index => $argument) {
+            if (
+                $argument === '--def'
+                && isset($command[$index + 1])
+                && str_starts_with($command[$index + 1], 'plex=')
+            ) {
+                $command[$index + 1] = 'plex=***';
+            }
         }
 
         return $command;

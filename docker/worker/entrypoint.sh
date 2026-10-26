@@ -5,10 +5,10 @@ if [ -f "$FILEBOT_LICENCE_FILE" ]; then
     filebot --license "$FILEBOT_LICENCE_FILE"
 fi
 
-if [ -n "$OPENSUBTITLES_USERNAME" ] && [ -n "$OPENSUBTITLES_PASS" ]; then
+if [ -n "$OPENSUBTITLES_USERNAME" ] && [ -n "$OPENSUBTITLES_PASSWORD" ]; then
   echo "Configuring OpenSubtitles credentials for FileBot..."
-  filebot -script fn:configure --def osdbUser="$OPENSUBTITLES_USERNAME" --def osdbPwd="$OPENSUBTITLES_PASS" || true
-elif [ -n "$OPENSUBTITLES_USERNAME" ] || [ -n "$OPENSUBTITLES_PASS" ]; then
+  filebot -script fn:configure --def osdbUser="$OPENSUBTITLES_USERNAME" --def osdbPwd="$OPENSUBTITLES_PASSWORD" || true
+elif [ -n "$OPENSUBTITLES_USERNAME" ] || [ -n "$OPENSUBTITLES_PASSWORD" ]; then
   echo "OpenSubtitles credentials not configured: both username and password must be set."
 fi
 

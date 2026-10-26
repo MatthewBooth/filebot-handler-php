@@ -12,8 +12,8 @@ final class HealthController extends AbstractController
         '/api/v1/health',
         name: 'app_api_health',
         methods: ['GET'],
-        format: 'json')
-    ]
+        format: 'json',
+    )]
     public function index(): JsonResponse
     {
         return $this->json([

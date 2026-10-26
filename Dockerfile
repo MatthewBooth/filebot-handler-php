@@ -45,7 +45,7 @@ ENV HOME=/tmp \
 EXPOSE 9000
 
 HEALTHCHECK --interval=30s --timeout=5s --retries=3 --start-period=10s \
-    CMD php -r '$response = require "/app/public/index.php"; exit(0);' || exit 1
+    CMD php bin/console about --no-interaction >/dev/null 2>&1 || exit 1
 
 FROM app-base AS php
 

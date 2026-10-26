@@ -2,7 +2,8 @@
 
 namespace App\Model;
 
-final readonly class FilebotJobModel {
+final readonly class FilebotJobModel
+{
     /**
      * @param list<string> $paths
      */

@@ -86,6 +86,19 @@ final class CreateFilebotJobRequestDtoTest extends TestCase
         self::assertCount(2, $violations);
     }
 
+    public function testRejectsRelativePaths(): void
+    {
+        $validator = Validation::createValidatorBuilder()->enableAttributeMapping()->getValidator();
+
+        $violations = $validator->validate(new CreateFilebotJobRequestDto(
+            paths: ['downloads/example.mkv'],
+            label: 'movie',
+        ));
+
+        self::assertCount(1, $violations);
+        self::assertSame('paths[0]', $violations[0]->getPropertyPath());
+    }
+
     public function testRejectsNonNumericMediaId(): void
     {
         $validator = Validation::createValidatorBuilder()->enableAttributeMapping()->getValidator();

@@ -5,10 +5,11 @@ namespace App\Tests\Controller\Api;
 use App\Controller\Api\FilebotJobController;
 use App\Dto\CreateFilebotJobRequestDto;
 use App\Message\FilebotJobMessage;
-use PHPUnit\Framework\TestCase;
+use App\Tests\Support\InMemoryLogger;
 use Error;
 use RuntimeException;
 use Throwable;
+use PHPUnit\Framework\TestCase;
 use Symfony\Component\DependencyInjection\ContainerBuilder;
 use Symfony\Component\Messenger\Exception\ExceptionInterface;
 use Symfony\Component\Messenger\MessageBusInterface;
@@ -41,17 +42,19 @@ final class FilebotJobControllerUnitTest extends TestCase
 
         $controller = new FilebotJobController();
         $controller->setContainer(new ContainerBuilder());
+        $logger = new InMemoryLogger();
 
         $response = $controller->create(
             new CreateFilebotJobRequestDto(paths: ['/media/example.mkv'], label: 'movie'),
             $bus,
+            $logger,
         );
 
         self::assertSame(500, $response->getStatusCode());
         self::assertSame([
             'status' => 'error',
-            'type' => $exception::class,
-            'message' => $exception->getMessage(),
+            'message' => 'Unable to queue FileBot job.',
         ], json_decode($response->getContent(), true, flags: JSON_THROW_ON_ERROR));
+        self::assertSame($exception, $logger->records[0]['context']['exception']);
     }
 }
