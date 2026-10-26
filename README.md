@@ -19,7 +19,7 @@ Send a `POST` request to `/api/v1/jobs` with JSON such as:
 
 ```json
 {
-  "paths": ["/torrents/Example.Movie.2024"],
+  "path": "/torrents/Example.Movie.2024",
   "label": "movie",
   "action": "test",
   "conflict": "skip",
@@ -27,8 +27,9 @@ Send a `POST` request to `/api/v1/jobs` with JSON such as:
 }
 ```
 
-Paths must be absolute paths visible inside the PHP and worker containers. The
-API validates and queues the request, then the worker runs FileBot. The API
+`path` must be an absolute path visible inside the PHP and worker containers.
+The API checks that it exists and contains media before creating and queuing
+the job message. The worker then runs FileBot. The API
 returns `202 Accepted` after the message is queued.
 
 `action` accepts `test`, `copy`, or `move`; `conflict` independently accepts
@@ -36,14 +37,14 @@ returns `202 Accepted` after the message is queued.
 changes. `mediaId` is optional and must be numeric. With the default database
 settings, use a TMDB ID for movies and a TVDB ID for TV shows.
 
-Jobs that match no media are logged as `no_match` and acknowledged without a
-Messenger retry. Other FileBot failures are retried by Messenger.
+FileBot failures are not retried automatically; submit a new job with corrected
+parameters.
 
 ## Logs
 
 FileBot output continues to go to Monolog and is also appended to
 `var/log/filebot/<torrent name>.log`. Per-torrent files include the job options,
-input paths, FileBot output, and final result.
+input path, FileBot output, and final result.
 
 ## Configuration
 

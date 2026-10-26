@@ -2,16 +2,28 @@
 
 namespace App\Tests\Dto;
 
-use App\Dto\CreateFilebotJobRequestDto;
-use App\Model\FilebotJobModel;
+use App\Dto\CreateFilebotJobMessageDto;
+use App\Message\FilebotJobMessage;
 use PHPUnit\Framework\TestCase;
 use Symfony\Component\Validator\Validation;
 
-final class CreateFilebotJobRequestDtoTest extends TestCase
+final class CreateFilebotJobMessageDtoTest extends TestCase
 {
-    public function testDefaultsAndConvertsToFilebotJob(): void
+    private string $existingPath;
+
+    protected function setUp(): void
     {
-        $request = new CreateFilebotJobRequestDto(paths: ['/media/example.mkv'], label: 'movie');
+        $this->existingPath = tempnam(sys_get_temp_dir(), 'filebot-dto-');
+    }
+
+    protected function tearDown(): void
+    {
+        unlink($this->existingPath);
+    }
+
+    public function testDefaultsAndConvertsToFilebotJobMessage(): void
+    {
+        $request = new CreateFilebotJobMessageDto(path: '/media/example.mkv', label: 'movie');
 
         self::assertSame('Airdate', $request->order);
         self::assertSame('skip', $request->conflict);
@@ -20,16 +32,16 @@ final class CreateFilebotJobRequestDtoTest extends TestCase
         self::assertFalse($request->strict);
         self::assertTrue($request->artwork);
 
-        self::assertEquals(new FilebotJobModel(
-            paths: ['/media/example.mkv'],
+        self::assertEquals(new FilebotJobMessage(
+            path: '/media/example.mkv',
             label: 'movie',
-        ), $request->toFilebotJob());
+        ), $request->toFilebotJobMessage());
     }
 
     public function testConvertsEveryRequestOptionToFilebotJob(): void
     {
-        $request = new CreateFilebotJobRequestDto(
-            paths: ['/media/one.mkv', '/media/two.mkv'],
+        $request = new CreateFilebotJobMessageDto(
+            path: '/media/one.mkv',
             label: 'anime',
             order: 'Absolute',
             conflict: 'replace',
@@ -39,8 +51,8 @@ final class CreateFilebotJobRequestDtoTest extends TestCase
             artwork: false,
         );
 
-        self::assertEquals(new FilebotJobModel(
-            paths: ['/media/one.mkv', '/media/two.mkv'],
+        self::assertEquals(new FilebotJobMessage(
+            path: '/media/one.mkv',
             label: 'anime',
             order: 'Absolute',
             conflict: 'replace',
@@ -48,63 +60,63 @@ final class CreateFilebotJobRequestDtoTest extends TestCase
             mediaId: '123456',
             strict: true,
             artwork: false,
-        ), $request->toFilebotJob());
+        ), $request->toFilebotJobMessage());
     }
 
-    public function testValidatesPathsLabelOrderAndConflict(): void
+    public function testValidatesPathLabelOrderAndConflict(): void
     {
         $validator = Validation::createValidatorBuilder()->enableAttributeMapping()->getValidator();
 
-        self::assertCount(0, $validator->validate(new CreateFilebotJobRequestDto(
-            paths: ['/media/example.mkv'],
+        self::assertCount(0, $validator->validate(new CreateFilebotJobMessageDto(
+            path: $this->existingPath,
             label: 'tv',
             order: 'DVD',
             conflict: 'fail',
             action: 'test',
         )));
 
-        $violations = $validator->validate(new CreateFilebotJobRequestDto(
-            paths: [],
+        $violations = $validator->validate(new CreateFilebotJobMessageDto(
+            path: '',
             label: 'documentary',
             order: 'invalid',
             conflict: 'invalid',
             action: 'invalid',
         ));
 
-        self::assertCount(6, $violations);
+        self::assertCount(5, $violations);
     }
 
-    public function testRejectsBlankAndNonStringPaths(): void
+    public function testRejectsBlankPath(): void
     {
         $validator = Validation::createValidatorBuilder()->enableAttributeMapping()->getValidator();
 
-        $violations = $validator->validate(new CreateFilebotJobRequestDto(
-            paths: ['', 123],
+        $violations = $validator->validate(new CreateFilebotJobMessageDto(
+            path: '',
             label: 'movie',
         ));
 
-        self::assertCount(2, $violations);
+        self::assertCount(1, $violations);
     }
 
     public function testRejectsRelativePaths(): void
     {
         $validator = Validation::createValidatorBuilder()->enableAttributeMapping()->getValidator();
 
-        $violations = $validator->validate(new CreateFilebotJobRequestDto(
-            paths: ['downloads/example.mkv'],
+        $violations = $validator->validate(new CreateFilebotJobMessageDto(
+            path: 'downloads/example.mkv',
             label: 'movie',
         ));
 
-        self::assertCount(1, $violations);
-        self::assertSame('paths[0]', $violations[0]->getPropertyPath());
+        self::assertCount(2, $violations);
+        self::assertSame('path', $violations[0]->getPropertyPath());
     }
 
     public function testRejectsNonNumericMediaId(): void
     {
         $validator = Validation::createValidatorBuilder()->enableAttributeMapping()->getValidator();
 
-        $violations = $validator->validate(new CreateFilebotJobRequestDto(
-            paths: ['/media/example.mkv'],
+        $violations = $validator->validate(new CreateFilebotJobMessageDto(
+            path: $this->existingPath,
             label: 'tv',
             mediaId: 'show-42',
         ));

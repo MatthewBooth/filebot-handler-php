@@ -3,15 +3,48 @@
 namespace App\Tests\Message;
 
 use App\Message\FilebotJobMessage;
-use App\Model\FilebotJobModel;
 use PHPUnit\Framework\TestCase;
 
 final class FilebotJobMessageTest extends TestCase
 {
-    public function testCarriesTheJob(): void
+    public function testUsesDefaultsAndReturnsCompleteLogContext(): void
     {
-        $job = new FilebotJobModel(paths: ['/media/example.mkv'], label: 'movie');
+        $job = new FilebotJobMessage(path: '/media/example.mkv', label: 'tv');
 
-        self::assertSame($job, (new FilebotJobMessage($job))->job);
+        self::assertSame([
+            'path' => '/media/example.mkv',
+            'label' => 'tv',
+            'order' => 'Airdate',
+            'conflict' => 'skip',
+            'action' => 'copy',
+            'mediaId' => '',
+            'strict' => false,
+            'artwork' => true,
+        ], $job->toLogContext());
+    }
+
+    public function testLogContextContainsAllExplicitValues(): void
+    {
+        $job = new FilebotJobMessage(
+            path: '/media/episode.mkv',
+            label: 'anime',
+            order: 'Absolute',
+            conflict: 'replace',
+            action: 'move',
+            mediaId: '123456',
+            strict: true,
+            artwork: false,
+        );
+
+        self::assertSame([
+            'path' => '/media/episode.mkv',
+            'label' => 'anime',
+            'order' => 'Absolute',
+            'conflict' => 'replace',
+            'action' => 'move',
+            'mediaId' => '123456',
+            'strict' => true,
+            'artwork' => false,
+        ], $job->toLogContext());
     }
 }

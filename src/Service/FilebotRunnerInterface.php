@@ -2,9 +2,9 @@
 
 namespace App\Service;
 
-use App\Model\FilebotJobModel;
+use App\Message\FilebotJobMessage;
 
 interface FilebotRunnerInterface
 {
-    public function run(FilebotJobModel $job): void;
+    public function run(FilebotJobMessage $job): void;
 }

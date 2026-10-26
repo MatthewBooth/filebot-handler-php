@@ -2,25 +2,17 @@
 
 namespace App\Dto;
 
-use App\Model\FilebotJobModel;
+use App\Message\FilebotJobMessage;
+use App\Validator\ExistingPath;
 use Symfony\Component\Validator\Constraints as Assert;
 
-final readonly class CreateFilebotJobRequestDto
+final readonly class CreateFilebotJobMessageDto
 {
-    /**
-     * @param list<string> $paths
-     */
     public function __construct(
         #[Assert\NotBlank]
-        #[Assert\Count(min: 1)]
-        #[Assert\All(constraints: [
-            new Assert\Sequentially(constraints: [
-                new Assert\NotBlank(),
-                new Assert\Type('string'),
-                new Assert\Regex(pattern: '#^/#', message: 'Path must be absolute.'),
-            ]),
-        ])]
-        public array $paths,
+        #[Assert\Regex(pattern: '/^\/.+$/', message: 'Path must be absolute.')]
+        #[ExistingPath]
+        public string $path,
 
         #[Assert\NotBlank]
         #[Assert\Choice(choices: ['movie', 'tv', 'anime', 'music'])]
@@ -47,10 +39,10 @@ final readonly class CreateFilebotJobRequestDto
     ) {
     }
 
-    public function toFilebotJob(): FilebotJobModel
+    public function toFilebotJobMessage(): FilebotJobMessage
     {
-        return new FilebotJobModel(
-            paths: $this->paths,
+        return new FilebotJobMessage(
+            path: $this->path,
             label: $this->label,
             order: $this->order,
             conflict: $this->conflict,

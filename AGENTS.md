@@ -26,7 +26,7 @@ Important application areas:
 The main FileBot job flow is:
 
 1. API request hits `FilebotJobController`.
-2. Symfony maps JSON into `CreateFilebotJobRequestDto` with `#[MapRequestPayload]`.
+2. Symfony maps JSON into `CreateFilebotJobMessageDto` with `#[MapRequestPayload]`.
 3. Validator constraints validate the request DTO.
 4. DTO converts to `FilebotJobModel`.
 5. Controller dispatches `FilebotJobMessage` through Messenger.

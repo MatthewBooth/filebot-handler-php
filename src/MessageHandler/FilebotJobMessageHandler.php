@@ -16,10 +16,10 @@ final readonly class FilebotJobMessageHandler
     ) {
     }
 
-    public function __invoke(FilebotJobMessage $message): void
+    public function __invoke(FilebotJobMessage $job): void
     {
-        $this->logger->info('Received FileBot job.', $message->job->toLogContext());
-
-        $this->filebotRunner->run($message->job);
+        $this->logger->info('Received FileBot job.', $job->toLogContext());
+        $this->filebotRunner->run($job);
+        $this->logger->info('FileBot job completed.', $job->toLogContext());
     }
 }

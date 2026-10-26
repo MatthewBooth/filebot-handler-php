@@ -2,8 +2,11 @@
 
 namespace App\Tests\Service;
 
+use App\Command\FilebotCommandBuilder;
 use App\Config\FilebotConfig;
-use App\Model\FilebotJobModel;
+use App\Exception\FilebotJobValidationException;
+use App\Logging\FilebotJobLogWriter;
+use App\Message\FilebotJobMessage;
 use App\Service\FilebotRunnerService;
 use App\Tests\Support\InMemoryLogger;
 use PHPUnit\Framework\TestCase;
@@ -85,8 +88,8 @@ SH;
         $service = $this->createService($logger);
         $path = $this->createFile('example.mkv');
 
-        $service->run(new FilebotJobModel(
-            paths: [$path],
+        $service->run(new FilebotJobMessage(
+            path: $path,
             label: 'tv',
             action: 'test',
         ));
@@ -130,8 +133,8 @@ SH;
         touch($torrentPath . '/episode.mkv');
 
         $logger = new InMemoryLogger();
-        $this->createService($logger)->run(new FilebotJobModel(
-            paths: [$torrentPath],
+        $this->createService($logger)->run(new FilebotJobMessage(
+            path: $torrentPath,
             label: 'tv',
         ));
 
@@ -139,9 +142,13 @@ SH;
         self::assertFileExists($logFile);
         $content = file_get_contents($logFile);
         self::assertIsString($content);
-        self::assertStringContainsString('Processing path: ' . $torrentPath, $content);
+        self::assertStringContainsString('Command: ["filebot","-script","fn:amc"', $content);
+        self::assertStringContainsString('"--action","copy"', $content);
         self::assertStringContainsString('FileBot: stdout test line', $content);
         self::assertStringContainsString('FileBot: stderr test line', $content);
+        self::assertStringNotContainsString('Received FileBot job:', $content);
+        self::assertStringNotContainsString('Processing path:', $content);
+        self::assertStringNotContainsString('FileBot command completed.', $content);
         self::assertContains('FileBot: stdout test line', array_column($logger->records, 'message'));
         self::assertContains('FileBot: stderr test line', array_column($logger->records, 'message'));
     }
@@ -152,8 +159,8 @@ SH;
         $service = $this->createService($logger);
         $path = $this->createFile('example.mkv');
 
-        $service->run(new FilebotJobModel(
-            paths: [$path],
+        $service->run(new FilebotJobMessage(
+            path: $path,
             label: 'tv',
             conflict: 'replace',
             action: 'move',
@@ -170,8 +177,8 @@ SH;
         $logger = new InMemoryLogger();
         $path = $this->createFile('example.mkv');
 
-        $this->createService($logger)->run(new FilebotJobModel(
-            paths: [$path],
+        $this->createService($logger)->run(new FilebotJobMessage(
+            path: $path,
             label: 'movie',
             mediaId: '123456',
         ));
@@ -187,8 +194,8 @@ SH;
         $service = $this->createService($logger);
         $path = $this->createFile('example.mkv');
 
-        $service->run(new FilebotJobModel(
-            paths: [$path],
+        $service->run(new FilebotJobMessage(
+            path: $path,
             label: 'tv',
             conflict: 'skip',
             action: 'copy',
@@ -206,8 +213,8 @@ SH;
         $service = $this->createService($logger);
         $path = $this->createFile('example.mkv');
 
-        $service->run(new FilebotJobModel(
-            paths: [$path],
+        $service->run(new FilebotJobMessage(
+            path: $path,
             label: 'tv',
         ));
 
@@ -225,26 +232,13 @@ SH;
         $logger = new InMemoryLogger();
         $service = $this->createService($logger);
 
-        $service->run(new FilebotJobModel(
-            paths: [$folderPath],
+        $service->run(new FilebotJobMessage(
+            path: $folderPath,
             label: 'tv',
         ));
 
         self::assertContainsDef($logger->records[1]['context']['command'], 'ut_dir=' . $folderPath);
         self::assertContainsDef($logger->records[1]['context']['command'], 'ut_kind=multi');
-    }
-
-    public function testRunRejectsRelativePath(): void
-    {
-        $service = $this->createService(new InMemoryLogger());
-
-        $this->expectException(\RuntimeException::class);
-        $this->expectExceptionCode(400);
-
-        $service->run(new FilebotJobModel(
-            paths: ['incoming/example.mkv'],
-            label: 'tv',
-        ));
     }
 
     public function testRunThrowsWhenFilebotExitsWithFailure(): void
@@ -254,8 +248,8 @@ SH;
         $this->expectException(\RuntimeException::class);
         $this->expectExceptionMessage('FileBot command failed with exit code 23.');
 
-        $this->createService(new InMemoryLogger())->run(new FilebotJobModel(
-            paths: [$path],
+        $this->createService(new InMemoryLogger())->run(new FilebotJobMessage(
+            path: $path,
             label: 'process-failure',
             action: 'test',
         ));
@@ -266,8 +260,8 @@ SH;
         $logger = new InMemoryLogger();
         $path = $this->createFile('example.mkv');
 
-        $this->createService($logger)->run(new FilebotJobModel(
-            paths: [$path],
+        $this->createService($logger)->run(new FilebotJobMessage(
+            path: $path,
             label: 'process-noop',
         ));
 
@@ -284,8 +278,8 @@ SH;
         $logger = new InMemoryLogger();
         $path = $this->createFile('example.mkv');
 
-        $this->createService($logger)->run(new FilebotJobModel(
-            paths: [$path],
+        $this->createService($logger)->run(new FilebotJobMessage(
+            path: $path,
             label: 'no-match-noop',
             mediaId: '73871',
             action: 'copy',
@@ -307,8 +301,8 @@ SH;
         $logger = new InMemoryLogger();
         $path = $this->createFile('example.mkv');
 
-        $this->createService($logger)->run(new FilebotJobModel(
-            paths: [$path],
+        $this->createService($logger)->run(new FilebotJobMessage(
+            path: $path,
             label: 'duplicate-noop',
         ));
 
@@ -330,8 +324,8 @@ SH;
         $this->expectException(\RuntimeException::class);
         $this->expectExceptionMessage('FileBot command failed with exit code 3.');
 
-        $this->createService(new InMemoryLogger())->run(new FilebotJobModel(
-            paths: [$path],
+        $this->createService(new InMemoryLogger())->run(new FilebotJobMessage(
+            path: $path,
             label: 'mixed-failure',
         ));
     }
@@ -350,12 +344,30 @@ SH;
         $logger = new InMemoryLogger();
         $service = $this->createService($logger);
 
-        $service->run(new FilebotJobModel(
-            paths: [$folderPath],
+        $service->run(new FilebotJobMessage(
+            path: $folderPath,
             label: 'tv',
         ));
 
         self::assertContainsDef($logger->records[1]['context']['command'], 'ut_kind=single');
+    }
+
+    public function testCommandBuilderRejectsDirectoryWithoutMediaFiles(): void
+    {
+        $emptyDirectory = $this->temporaryRoot . '/empty-directory';
+        mkdir($emptyDirectory);
+
+        try {
+            $this->expectException(FilebotJobValidationException::class);
+            $this->expectExceptionMessage('Path does not contain any media files: ' . $emptyDirectory);
+
+            $this->createService(new InMemoryLogger())->run(new FilebotJobMessage(
+                path: $emptyDirectory,
+                label: 'tv',
+            ));
+        } finally {
+            (new Filesystem())->remove($emptyDirectory);
+        }
     }
 
     public function testRunDoesNotAddArtworkDefinitionWhenArtworkIsDisabled(): void
@@ -364,8 +376,8 @@ SH;
         $service = $this->createService($logger);
         $path = $this->createFile('example.mkv');
 
-        $service->run(new FilebotJobModel(
-            paths: [$path],
+        $service->run(new FilebotJobMessage(
+            path: $path,
             label: 'tv',
             artwork: false,
         ));
@@ -379,8 +391,8 @@ SH;
         $service = $this->createService($logger);
         $path = $this->createFile('example.mkv');
 
-        $service->run(new FilebotJobModel(
-            paths: [$path],
+        $service->run(new FilebotJobMessage(
+            path: $path,
             label: 'movie',
         ));
 
@@ -421,7 +433,12 @@ SH;
 
     private function createService(InMemoryLogger $logger): FilebotRunnerService
     {
-        return new FilebotRunnerService($logger, $this->createConfig(), new Filesystem(), new Finder(), $this->temporaryRoot . '/logs');
+        $filesystem = new Filesystem();
+        return new FilebotRunnerService(
+            $logger,
+            new FilebotCommandBuilder($this->createConfig(), new Finder()),
+            new FilebotJobLogWriter($filesystem, $logger, $this->temporaryRoot . '/logs'),
+        );
     }
 
     private function createFile(string $name): string
@@ -504,26 +521,24 @@ SH;
         return $definitions;
     }
 
-    public function testRunBuildsSeparateCommandsForMultipleFileAndFolderPaths(): void
+    public function testRunBuildsCommandForSingleFolderPath(): void
     {
         $folderPath = $this->temporaryRoot . '/incoming-folder';
-        $filePath = $this->temporaryRoot . '/example.mkv';
         mkdir($folderPath);
         touch($folderPath . '/episode-one.mkv');
         touch($folderPath . '/episode-two.mkv');
-        touch($filePath);
 
         try {
             $logger = new InMemoryLogger();
             $service = $this->createService($logger);
 
-            $service->run(new FilebotJobModel(
-                paths: [$folderPath, $filePath],
+            $service->run(new FilebotJobMessage(
+                path: $folderPath,
                 label: 'tv',
                 action: 'test',
             ));
 
-            self::assertCount(10, $logger->records);
+            self::assertCount(5, $logger->records);
 
             self::assertSame('Processing path: ' . $folderPath, $logger->records[0]['message']);
             self::assertSame('Prepared FileBot command.', $logger->records[1]['message']);
@@ -536,23 +551,8 @@ SH;
             self::assertContainsDef($folderCommand, 'ut_kind=multi');
             self::assertContainsDef($folderCommand, 'ut_label=tv');
             self::assertContainsDef($folderCommand, 'ut_title=incoming-folder');
-
-            self::assertSame('Processing path: ' . $filePath, $logger->records[5]['message']);
-            self::assertSame('Prepared FileBot command.', $logger->records[6]['message']);
-            self::assertSame($filePath, $logger->records[6]['context']['path']);
-
-            $fileCommand = $logger->records[6]['context']['command'];
-
-            self::assertCommandContainsOptionValue($fileCommand, '--action', 'test');
-            self::assertContainsDef($fileCommand, 'ut_dir=' . $filePath);
-            self::assertContainsDef($fileCommand, 'ut_kind=single');
-            self::assertContainsDef($fileCommand, 'ut_label=tv');
-            self::assertContainsDef($fileCommand, 'ut_title=example.mkv');
         } finally {
-            if (is_file($filePath)) {
-                unlink($filePath);
-            }
-
+            (new Filesystem())->remove($folderPath);
         }
     }
 }

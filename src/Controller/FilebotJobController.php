@@ -1,9 +1,8 @@
 <?php
 
-namespace App\Controller\Api;
+namespace App\Controller;
 
-use App\Dto\CreateFilebotJobRequestDto;
-use App\Message\FilebotJobMessage;
+use App\Dto\CreateFilebotJobMessageDto;
 use Psr\Log\LoggerInterface;
 use Symfony\Bundle\FrameworkBundle\Controller\AbstractController;
 use Symfony\Component\HttpFoundation\JsonResponse;
@@ -22,12 +21,14 @@ final class FilebotJobController extends AbstractController
         format: 'json'
     )]
     public function create(
-        #[MapRequestPayload] CreateFilebotJobRequestDto $createFilebotJobRequest,
-        MessageBusInterface $messageBus,
-        LoggerInterface $logger,
+        #[MapRequestPayload] CreateFilebotJobMessageDto $createFilebotJobRequest,
+        MessageBusInterface                             $messageBus,
+        LoggerInterface                                 $logger,
     ): JsonResponse {
+        $job = $createFilebotJobRequest->toFilebotJobMessage();
+
         try {
-            $messageBus->dispatch(new FilebotJobMessage($createFilebotJobRequest->toFilebotJob()));
+            $messageBus->dispatch($job);
         } catch (Throwable $exception) {
             $logger->error('Failed to queue FileBot job.', ['exception' => $exception]);
 

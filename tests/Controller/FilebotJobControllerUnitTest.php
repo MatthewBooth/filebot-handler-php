@@ -1,18 +1,18 @@
 <?php
 
-namespace App\Tests\Controller\Api;
+namespace App\Tests\Controller;
 
-use App\Controller\Api\FilebotJobController;
-use App\Dto\CreateFilebotJobRequestDto;
+use App\Controller\FilebotJobController;
+use App\Dto\CreateFilebotJobMessageDto;
 use App\Message\FilebotJobMessage;
 use App\Tests\Support\InMemoryLogger;
 use Error;
-use RuntimeException;
-use Throwable;
 use PHPUnit\Framework\TestCase;
+use RuntimeException;
 use Symfony\Component\DependencyInjection\ContainerBuilder;
 use Symfony\Component\Messenger\Exception\ExceptionInterface;
 use Symfony\Component\Messenger\MessageBusInterface;
+use Throwable;
 
 final class FilebotJobControllerUnitTest extends TestCase
 {
@@ -45,7 +45,7 @@ final class FilebotJobControllerUnitTest extends TestCase
         $logger = new InMemoryLogger();
 
         $response = $controller->create(
-            new CreateFilebotJobRequestDto(paths: ['/media/example.mkv'], label: 'movie'),
+            new CreateFilebotJobMessageDto(path: '/media/example.mkv', label: 'movie'),
             $bus,
             $logger,
         );
@@ -57,4 +57,5 @@ final class FilebotJobControllerUnitTest extends TestCase
         ], json_decode($response->getContent(), true, flags: JSON_THROW_ON_ERROR));
         self::assertSame($exception, $logger->records[0]['context']['exception']);
     }
+
 }
