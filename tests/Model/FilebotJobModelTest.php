@@ -31,7 +31,7 @@ final class FilebotJobModelTest extends TestCase
             order: 'Absolute',
             conflict: 'replace',
             action: 'move',
-            mediaId: 'show-42',
+            mediaId: '123456',
             strict: true,
             artwork: false,
         );
@@ -42,7 +42,7 @@ final class FilebotJobModelTest extends TestCase
             'order' => 'Absolute',
             'conflict' => 'replace',
             'action' => 'move',
-            'mediaId' => 'show-42',
+            'mediaId' => '123456',
             'strict' => true,
             'artwork' => false,
         ], $job->toLogContext());

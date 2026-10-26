@@ -16,7 +16,6 @@ final class FilebotConfigTest extends TestCase
             filebotLogLevel: 'info',
             plexHost: 'http://plex.local:32400',
             plexToken: 'secret-token',
-            amcLogDir: '/var/log/filebot',
             amcAction: 'copy',
             amcUnsorted: true,
             amcClean: false,
@@ -34,7 +33,6 @@ final class FilebotConfigTest extends TestCase
         self::assertSame('info', $config->filebotLogLevel);
         self::assertSame('http://plex.local:32400', $config->plexHost);
         self::assertSame('secret-token', $config->plexToken);
-        self::assertSame('/var/log/filebot', $config->amcLogDir);
         self::assertSame('copy', $config->amcAction);
         self::assertTrue($config->amcUnsorted);
         self::assertFalse($config->amcClean);

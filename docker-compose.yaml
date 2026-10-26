@@ -8,10 +8,12 @@ services:
     working_dir: /app
     volumes:
       - ./:/app
-      - "${DOWNLOAD_VOL}:/torrents:rw"
+      - "${DOWNLOAD_VOL}:${TORRENTS_ROOT}:rw"
+      - "${STORAGE_VOL}:${STORAGE_ROOT}:rw"
     environment:
       HOME: /tmp
       TZ: "${TZ:-UTC}"
+      AMC_UNSORTED: "${AMC_UNSORTED:-n}"
     depends_on:
         redis:
             condition: service_healthy
@@ -32,13 +34,13 @@ services:
       - ./:/app
       - "${DOWNLOAD_VOL}:${TORRENTS_ROOT}:rw"
       - "${STORAGE_VOL}:${STORAGE_ROOT}:rw"
-      - "${FILEBOT_VOL}:/filebot:rw"
-      - "${LOGS_VOL}:/logs:rw"
+      - "${FILEBOT_VOL}:${FILEBOT_HOME}:rw"
     environment:
       HOME: "${FILEBOT_HOME}"
       TZ: "${TZ:-UTC}"
       FILEBOT_OPTS: "${FILEBOT_OPTS}"
       FILEBOT_LICENCE_FILE: "${FILEBOT_LICENCE_FILE}"
+      AMC_UNSORTED: "${AMC_UNSORTED:-n}"
     depends_on:
       redis:
         condition: service_healthy

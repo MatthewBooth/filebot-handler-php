@@ -34,7 +34,7 @@ final class CreateFilebotJobRequestDtoTest extends TestCase
             order: 'Absolute',
             conflict: 'replace',
             action: 'move',
-            mediaId: 'show-42',
+            mediaId: '123456',
             strict: true,
             artwork: false,
         );
@@ -45,7 +45,7 @@ final class CreateFilebotJobRequestDtoTest extends TestCase
             order: 'Absolute',
             conflict: 'replace',
             action: 'move',
-            mediaId: 'show-42',
+            mediaId: '123456',
             strict: true,
             artwork: false,
         ), $request->toFilebotJob());
@@ -84,5 +84,19 @@ final class CreateFilebotJobRequestDtoTest extends TestCase
         ));
 
         self::assertCount(2, $violations);
+    }
+
+    public function testRejectsNonNumericMediaId(): void
+    {
+        $validator = Validation::createValidatorBuilder()->enableAttributeMapping()->getValidator();
+
+        $violations = $validator->validate(new CreateFilebotJobRequestDto(
+            paths: ['/media/example.mkv'],
+            label: 'tv',
+            mediaId: 'show-42',
+        ));
+
+        self::assertCount(1, $violations);
+        self::assertSame('mediaId', $violations[0]->getPropertyPath());
     }
 }

@@ -35,6 +35,7 @@ final readonly class CreateFilebotJobRequestDto
         #[Assert\Choice(choices: ['test', 'copy', 'move'])]
         public string $action = 'copy',
 
+        #[Assert\Regex(pattern: '/^[1-9]\d*$/')]
         public string $mediaId = '',
 
         public bool $strict = false,

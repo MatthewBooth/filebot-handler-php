@@ -30,6 +30,12 @@ printf '%s\n' "$*" >> __INVOCATION_LOG__
 case "$*" in
     *ut_label=process-failure*) printf 'stdout test line\n'; printf 'stderr test line\n' >&2; exit 23 ;;
     *ut_label=process-noop*) printf 'Finished without processing any files\n'; exit 100 ;;
+    *73871*)
+        printf 'No missing subtitles\n'
+        printf 'Failed to identify or process any files\n'
+        printf 'Finished without processing any files\n'
+        exit 3
+        ;;
     *ut_label=duplicate-noop*)
         printf 'No missing subtitles\n'
         printf 'Failed to process [/input/episode.mkv] because [/output/episode.mkv] is an exact copy and already exists [Last-Modified: Mon Oct 05 22:23:17 BST 2026]\n'
@@ -116,6 +122,30 @@ SH;
         self::assertContains('FileBot: stderr test line', array_column($logger->records, 'message'));
     }
 
+    public function testRunWritesOutputToTorrentNamedLogAndKeepsMainLoggerOutput(): void
+    {
+        $torrentName = 'Reacher S04E04';
+        $torrentPath = $this->temporaryRoot . '/' . $torrentName;
+        mkdir($torrentPath);
+        touch($torrentPath . '/episode.mkv');
+
+        $logger = new InMemoryLogger();
+        $this->createService($logger)->run(new FilebotJobModel(
+            paths: [$torrentPath],
+            label: 'tv',
+        ));
+
+        $logFile = $this->temporaryRoot . '/logs/filebot/' . $torrentName . '.log';
+        self::assertFileExists($logFile);
+        $content = file_get_contents($logFile);
+        self::assertIsString($content);
+        self::assertStringContainsString('Processing path: ' . $torrentPath, $content);
+        self::assertStringContainsString('FileBot: stdout test line', $content);
+        self::assertStringContainsString('FileBot: stderr test line', $content);
+        self::assertContains('FileBot: stdout test line', array_column($logger->records, 'message'));
+        self::assertContains('FileBot: stderr test line', array_column($logger->records, 'message'));
+    }
+
     public function testRunPassesConflictPolicyDirectly(): void
     {
         $logger = new InMemoryLogger();
@@ -133,6 +163,22 @@ SH;
 
         self::assertCommandContainsOptionValue($command, '--action', 'move');
         self::assertCommandContainsOptionValue($command, '--conflict', 'replace');
+    }
+
+    public function testRunFiltersByProvidedMediaId(): void
+    {
+        $logger = new InMemoryLogger();
+        $path = $this->createFile('example.mkv');
+
+        $this->createService($logger)->run(new FilebotJobModel(
+            paths: [$path],
+            label: 'movie',
+            mediaId: '123456',
+        ));
+
+        $command = $logger->records[1]['context']['command'];
+        self::assertCommandContainsOptionValue($command, '--filter', 'id in [123456]');
+        self::assertContainsDef($command, 'movieDB=TheMovieDB');
     }
 
     public function testRunLogsDefaultCommandWhenNotDryRunAndNotOverwrite(): void
@@ -206,7 +252,7 @@ SH;
         $path = $this->createFile('example.mkv');
         $logger = new InMemoryLogger();
         $config = $this->createConfig($this->temporaryRoot . '/torrents');
-        $service = new FilebotRunnerService($logger, $config, new Filesystem(), new Finder());
+        $service = new FilebotRunnerService($logger, $config, new Filesystem(), new Finder(), $this->temporaryRoot . '/logs');
 
         $service->run(new FilebotJobModel(paths: [$path], label: 'tv'));
 
@@ -242,6 +288,29 @@ SH;
         $completionRecord = reset($completionRecords);
         self::assertSame(100, $completionRecord['context']['exit_code']);
         self::assertSame('noop', $completionRecord['context']['result']);
+    }
+
+    public function testRunTreatsNoMatchingMediaAsSuccessfulWithoutRetryableFailure(): void
+    {
+        $logger = new InMemoryLogger();
+        $path = $this->createFile('example.mkv');
+
+        $this->createService($logger)->run(new FilebotJobModel(
+            paths: [$path],
+            label: 'tv',
+            mediaId: '73871',
+            action: 'copy',
+        ));
+
+        self::assertContains('FileBot found no matching media; no files were processed.', array_column($logger->records, 'message'));
+        $completionRecords = array_filter(
+            $logger->records,
+            static fn (array $record): bool => $record['message'] === 'FileBot found no matching media; no files were processed.',
+        );
+        self::assertCount(1, $completionRecords);
+        $completionRecord = reset($completionRecords);
+        self::assertSame(3, $completionRecord['context']['exit_code']);
+        self::assertSame('no_match', $completionRecord['context']['result']);
     }
 
     public function testRunTreatsExactDuplicateOnlyFailureAsSuccessfulNoop(): void
@@ -327,7 +396,7 @@ SH;
 
         $command = $logger->records[1]['context']['command'];
 
-        self::assertContainsDef($command, 'unsorted=y');
+        self::assertContainsDef($command, 'unsorted=n');
         self::assertContainsDef($command, 'clean=n');
         self::assertContainsDef($command, 'subtitles=en');
         self::assertContainsDef($command, 'movieDB=TheMovieDB');
@@ -350,9 +419,8 @@ SH;
             filebotLogLevel: 'info',
             plexHost: 'http://plex.local:32400',
             plexToken: 'secret-token',
-            amcLogDir: '/var/log/filebot',
             amcAction: 'copy',
-            amcUnsorted: true,
+            amcUnsorted: false,
             amcClean: false,
             amcSubtitleLang: 'en',
             amcMovieDb: 'TheMovieDB',
@@ -365,7 +433,7 @@ SH;
 
     private function createService(InMemoryLogger $logger): FilebotRunnerService
     {
-        return new FilebotRunnerService($logger, $this->createConfig(), new Filesystem(), new Finder());
+        return new FilebotRunnerService($logger, $this->createConfig(), new Filesystem(), new Finder(), $this->temporaryRoot . '/logs');
     }
 
     private function createFile(string $name): string
@@ -410,6 +478,7 @@ SH;
         ));
 
         self::assertCount(1, $formatDefinitions);
+        self::assertStringContainsString('/{plex.derive{', $formatDefinitions[0]);
         self::assertStringContainsString('{plex.derive{', $formatDefinitions[0]);
         self::assertStringContainsString('any{vf}{null}', $formatDefinitions[0]);
         self::assertStringContainsString('any{vc}{null}', $formatDefinitions[0]);

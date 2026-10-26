@@ -4,10 +4,13 @@ namespace App\Service;
 
 use App\Config\FilebotConfig;
 use App\Model\FilebotJobModel;
-use RuntimeException;
+use DateTimeImmutable;
 use Psr\Log\LoggerInterface;
 use Psr\Log\LogLevel;
+use RuntimeException;
+use Symfony\Component\DependencyInjection\Attribute\Autowire;
 use Symfony\Component\Filesystem\Exception\FileNotFoundException;
+use Symfony\Component\Filesystem\Exception\IOExceptionInterface;
 use Symfony\Component\Filesystem\Filesystem;
 use Symfony\Component\Filesystem\Path;
 use Symfony\Component\Finder\Finder;
@@ -24,15 +27,28 @@ final readonly class FilebotRunnerService implements FilebotRunnerInterface
         private LoggerInterface $logger,
         private FilebotConfig $config,
         private Filesystem $filesystem,
-        private Finder $finder
+        private Finder $finder,
+        #[Autowire('%kernel.logs_dir%')]
+        private string $logsDirectory,
     )
     {
     }
 
     public function run(FilebotJobModel $job): void
     {
+        $jobLogFile = $this->createJobLogFile($job);
+        $logFileWritable = $jobLogFile !== null;
+
+        if ($jobLogFile !== null) {
+            $this->writeJobLog($jobLogFile, $logFileWritable, LogLevel::INFO, 'Received FileBot job: ' . json_encode(
+                $job->toLogContext(),
+                JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE | JSON_INVALID_UTF8_SUBSTITUTE,
+            ));
+        }
+
         foreach ($job->paths as $path) {
             $this->logger->info('Processing path: ' . $path);
+            $this->writeJobLog($jobLogFile, $logFileWritable, 'INFO', 'Processing path: ' . $path);
 
             if (!$this->validatePath($path)) {
                 throw new FileNotFoundException('Path does not exist: ' . $path, Response::HTTP_BAD_REQUEST);
@@ -48,12 +64,15 @@ final readonly class FilebotRunnerService implements FilebotRunnerInterface
             $process = new Process($command);
             $process->setTimeout(null);
             $outputBuffers = [Process::OUT => '', Process::ERR => ''];
-            $logLine = function (string $type, string $line) use ($path): void {
+            $logLine = function (string $type, string $line) use ($path, $jobLogFile, &$logFileWritable): void {
                 if (trim($line) === '') {
                     return;
                 }
 
-                $this->logger->log($type === Process::ERR ? LogLevel::WARNING : LogLevel::INFO, 'FileBot: ' . $line, [
+                $level = $type === Process::ERR ? LogLevel::WARNING : LogLevel::INFO;
+                $message = 'FileBot: ' . $line;
+                $this->writeJobLog($jobLogFile, $logFileWritable, $level, $message);
+                $this->logger->log($level, $message, [
                     'path' => $path,
                     'stream' => $type === Process::ERR ? 'stderr' : 'stdout',
                 ]);
@@ -74,18 +93,112 @@ final readonly class FilebotRunnerService implements FilebotRunnerInterface
             }
 
             $exitCode = $process->getExitCode();
-            $isNoop = $exitCode === self::NOOP_EXIT_CODE || $this->isExactDuplicateNoop($process);
+            $isNoMatch = $this->isNoMatchNoop($process);
+            $isNoop = $exitCode === self::NOOP_EXIT_CODE || $this->isExactDuplicateNoop($process) || $isNoMatch;
 
             if (!$process->isSuccessful() && !$isNoop) {
                 throw new ProcessFailedException($process);
             }
 
-            $this->logger->info($isNoop ? 'FileBot command completed without changes.' : 'FileBot command completed.', [
+            $message = match (true) {
+                $isNoMatch => 'FileBot found no matching media; no files were processed.',
+                $isNoop => 'FileBot command completed without changes.',
+                default => 'FileBot command completed.',
+            };
+            $result = match (true) {
+                $isNoMatch => 'no_match',
+                $isNoop => 'noop',
+                default => 'processed',
+            };
+
+            $this->writeJobLog($jobLogFile, $logFileWritable, LogLevel::INFO, $message);
+            $this->logger->info($message, [
                 'path' => $path,
                 'exit_code' => $exitCode,
-                'result' => $isNoop ? 'noop' : 'processed',
+                'result' => $result,
             ]);
         }
+    }
+
+    private function createJobLogFile(FilebotJobModel $job): ?string
+    {
+        if ($job->paths === []) {
+            return null;
+        }
+
+        $firstPath = $this->resolvePath($job->paths[0]);
+        $torrentName = is_dir($firstPath) ? basename($firstPath) : pathinfo($firstPath, PATHINFO_FILENAME);
+        $torrentName = trim($torrentName, " .");
+        $torrentName = preg_replace('/[\\\\\/<>:"|?*\x00-\x1F\x7F]+/', '_', $torrentName) ?? '';
+        $torrentName = substr($torrentName, 0, 240);
+
+        if ($torrentName === '' || $torrentName === '.' || $torrentName === '..') {
+            $torrentName = 'filebot-job';
+        }
+
+        $logDirectory = $this->logsDirectory . '/filebot';
+
+        try {
+            $this->filesystem->mkdir($logDirectory);
+        } catch (IOExceptionInterface $exception) {
+            $this->logger->warning('Unable to create per-torrent FileBot log directory.', [
+                'log_directory' => $logDirectory,
+                'exception' => $exception,
+            ]);
+
+            return null;
+        }
+
+        $logFile = $logDirectory . '/' . $torrentName . '.log';
+
+        if (@file_put_contents($logFile, sprintf("\n[%s] Starting FileBot job.\n", new DateTimeImmutable()->format(DATE_ATOM)), FILE_APPEND | LOCK_EX) === false) {
+            $this->logger->warning('Unable to write per-torrent FileBot log file.', [
+                'log_file' => $logFile,
+            ]);
+
+            return null;
+        }
+
+        return $logFile;
+    }
+
+    private function writeJobLog(?string $logFile, bool &$logFileWritable, string $level, string $message): void
+    {
+        if ($logFile === null || !$logFileWritable) {
+            return;
+        }
+
+        $line = sprintf("[%s] %s %s\n", new DateTimeImmutable()->format(DATE_ATOM), strtoupper($level), $message);
+
+        if (@file_put_contents($logFile, $line, FILE_APPEND | LOCK_EX) === false) {
+            $logFileWritable = false;
+            $this->logger->warning('Unable to append to per-torrent FileBot log file.', [
+                'log_file' => $logFile,
+            ]);
+        }
+    }
+
+    private function isNoMatchNoop(Process $process): bool
+    {
+        if ($process->getExitCode() !== 3 || $process->getErrorOutput() !== '') {
+            return false;
+        }
+
+        $stdout = preg_split('/\R/', trim($process->getOutput()), -1, PREG_SPLIT_NO_EMPTY) ?: [];
+        $expectedLines = [
+            'No missing subtitles',
+            'Failed to identify or process any files',
+            'Finished without processing any files',
+        ];
+
+        foreach ($stdout as $line) {
+            if (!in_array($line, $expectedLines, true)) {
+                return false;
+            }
+        }
+
+        return in_array('Failed to identify or process any files', $stdout, true)
+            && in_array('Finished without processing any files', $stdout, true);
     }
 
     private function isExactDuplicateNoop(Process $process): bool
@@ -190,6 +303,11 @@ final readonly class FilebotRunnerService implements FilebotRunnerInterface
             $command[] = '-non-strict';
         }
 
+        if ($job->mediaId !== '') {
+            $command[] = '--filter';
+            $command[] = 'id in [' . $job->mediaId . ']';
+        }
+
         $format = <<<'GROOVY'
             {plex.derive{
                 def tags = [
@@ -202,6 +320,7 @@ final readonly class FilebotRunnerService implements FilebotRunnerInterface
                 tags ? " [${tags.join(' ')}]" : ''
             }.tail}
         GROOVY;
+        $format = ltrim($format);
 
         $defs = [
             "unsorted=" . ($this->config->amcUnsorted ? 'y' : 'n'),
