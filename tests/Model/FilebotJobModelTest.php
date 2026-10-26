@@ -16,11 +16,10 @@ final class FilebotJobModelTest extends TestCase
             'label' => 'tv',
             'order' => 'Airdate',
             'conflict' => 'skip',
+            'action' => 'copy',
             'mediaId' => '',
             'strict' => false,
             'artwork' => true,
-            'overwrite' => false,
-            'dryRun' => false,
         ], $job->toLogContext());
     }
 
@@ -31,11 +30,10 @@ final class FilebotJobModelTest extends TestCase
             label: 'anime',
             order: 'Absolute',
             conflict: 'replace',
+            action: 'move',
             mediaId: 'show-42',
             strict: true,
             artwork: false,
-            overwrite: true,
-            dryRun: true,
         );
 
         self::assertSame([
@@ -43,11 +41,10 @@ final class FilebotJobModelTest extends TestCase
             'label' => 'anime',
             'order' => 'Absolute',
             'conflict' => 'replace',
+            'action' => 'move',
             'mediaId' => 'show-42',
             'strict' => true,
             'artwork' => false,
-            'overwrite' => true,
-            'dryRun' => true,
         ], $job->toLogContext());
     }
 }

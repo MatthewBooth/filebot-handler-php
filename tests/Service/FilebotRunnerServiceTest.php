@@ -73,7 +73,7 @@ SH;
         (new Filesystem())->remove($this->temporaryRoot);
     }
 
-    public function testRunLogsDryRunCommand(): void
+    public function testRunUsesActionFromJob(): void
     {
         $logger = new InMemoryLogger();
         $service = $this->createService($logger);
@@ -82,8 +82,7 @@ SH;
         $service->run(new FilebotJobModel(
             paths: [$path],
             label: 'tv',
-            overwrite: false,
-            dryRun: true,
+            action: 'test',
         ));
 
         self::assertCount(5, $logger->records);
@@ -117,7 +116,7 @@ SH;
         self::assertContains('FileBot: stderr test line', array_column($logger->records, 'message'));
     }
 
-    public function testRunLogsOverwriteCommand(): void
+    public function testRunPassesConflictPolicyDirectly(): void
     {
         $logger = new InMemoryLogger();
         $service = $this->createService($logger);
@@ -126,14 +125,13 @@ SH;
         $service->run(new FilebotJobModel(
             paths: [$path],
             label: 'tv',
-            conflict: 'skip',
-            overwrite: true,
-            dryRun: false,
+            conflict: 'replace',
+            action: 'move',
         ));
 
         $command = $logger->records[1]['context']['command'];
 
-        self::assertCommandContainsOptionValue($command, '--action', 'copy');
+        self::assertCommandContainsOptionValue($command, '--action', 'move');
         self::assertCommandContainsOptionValue($command, '--conflict', 'replace');
     }
 
@@ -147,8 +145,7 @@ SH;
             paths: [$path],
             label: 'tv',
             conflict: 'skip',
-            overwrite: false,
-            dryRun: false,
+            action: 'copy',
         ));
 
         $command = $logger->records[1]['context']['command'];
@@ -171,7 +168,7 @@ SH;
         self::assertContains('-non-strict', $logger->records[1]['context']['command']);
     }
 
-    public function testRunAcceptsRelativeDirectoryUnderTorrentsRoot(): void
+    public function testRunUsesAbsolutePathWithoutAddingTorrentsRoot(): void
     {
         $folderName = 'Futurama.S11E04.Lords.of.the.Ring';
         $folderPath = $this->temporaryRoot . '/' . $folderName;
@@ -183,7 +180,7 @@ SH;
         $service = $this->createService($logger);
 
         $service->run(new FilebotJobModel(
-            paths: [$folderName],
+            paths: [$folderPath],
             label: 'tv',
         ));
 
@@ -191,7 +188,7 @@ SH;
         self::assertContainsDef($logger->records[1]['context']['command'], 'ut_kind=multi');
     }
 
-    public function testRunRejectsPathOutsideTorrentsRoot(): void
+    public function testRunRejectsRelativePath(): void
     {
         $service = $this->createService(new InMemoryLogger());
 
@@ -199,9 +196,21 @@ SH;
         $this->expectExceptionCode(400);
 
         $service->run(new FilebotJobModel(
-            paths: ['../outside.mkv'],
+            paths: ['incoming/example.mkv'],
             label: 'tv',
         ));
+    }
+
+    public function testRunAcceptsAbsolutePathOutsideConfiguredTorrentsRoot(): void
+    {
+        $path = $this->createFile('example.mkv');
+        $logger = new InMemoryLogger();
+        $config = $this->createConfig($this->temporaryRoot . '/torrents');
+        $service = new FilebotRunnerService($logger, $config, new Filesystem(), new Finder());
+
+        $service->run(new FilebotJobModel(paths: [$path], label: 'tv'));
+
+        self::assertContainsDef($logger->records[1]['context']['command'], 'ut_dir=' . $path);
     }
 
     public function testRunThrowsWhenFilebotExitsWithFailure(): void
@@ -213,7 +222,7 @@ SH;
         $this->createService(new InMemoryLogger())->run(new FilebotJobModel(
             paths: [$path],
             label: 'process-failure',
-            dryRun: true,
+            action: 'test',
         ));
     }
 
@@ -283,7 +292,7 @@ SH;
         $service = $this->createService($logger);
 
         $service->run(new FilebotJobModel(
-            paths: [$folderName],
+            paths: [$folderPath],
             label: 'tv',
         ));
 
@@ -326,18 +335,21 @@ SH;
         self::assertContainsDef($command, 'animeDB=AniDB');
         self::assertContainsDef($command, 'minLengthMS=300000');
         self::assertContainsDef($command, 'minFileSize=100000000');
-        self::assertContainsDef($command, 'movieFormat=/media/output/Films/{plex.tail}');
-        self::assertContainsDef($command, 'seriesFormat=/media/output/TV/{plex.tail}');
-        self::assertContainsDef($command, 'animeFormat=/media/output/TV/{plex.tail}');
+        self::assertFormatDefinition($command, 'movieFormat=/media/output/Films/');
+        self::assertFormatDefinition($command, 'seriesFormat=/media/output/TV/');
+        self::assertFormatDefinition($command, 'animeFormat=/media/output/TV/');
+        self::assertContainsDef($command, 'plex=http://plex.local:32400:secret-token');
     }
 
-    private function createConfig(): FilebotConfig
+    private function createConfig(?string $torrentsRoot = null): FilebotConfig
     {
         return new FilebotConfig(
-            torrentsRoot: $this->temporaryRoot,
+            torrentsRoot: $torrentsRoot ?? $this->temporaryRoot,
             storageRoot: '/media/output',
             filebotLang: 'en',
             filebotLogLevel: 'info',
+            plexHost: 'http://plex.local:32400',
+            plexToken: 'secret-token',
             amcLogDir: '/var/log/filebot',
             amcAction: 'copy',
             amcUnsorted: true,
@@ -389,6 +401,27 @@ SH;
     /**
      * @param list<string> $command
      */
+    private static function assertFormatDefinition(array $command, string $prefix): void
+    {
+        $definitions = self::extractDefinitions($command);
+        $formatDefinitions = array_values(array_filter(
+            $definitions,
+            static fn (string $definition): bool => str_starts_with($definition, $prefix),
+        ));
+
+        self::assertCount(1, $formatDefinitions);
+        self::assertStringContainsString('{plex.derive{', $formatDefinitions[0]);
+        self::assertStringContainsString('any{vf}{null}', $formatDefinitions[0]);
+        self::assertStringContainsString('any{vc}{null}', $formatDefinitions[0]);
+        self::assertStringContainsString('any{hdr}{SDR}', $formatDefinitions[0]);
+        self::assertStringContainsString('any{ac}{null}', $formatDefinitions[0]);
+        self::assertStringContainsString('tags.join', $formatDefinitions[0]);
+        self::assertStringContainsString('}.tail}', $formatDefinitions[0]);
+    }
+
+    /**
+     * @param list<string> $command
+     */
     private static function assertNotContainsDef(array $command, string $unexpectedDefinition): void
     {
         $definitions = self::extractDefinitions($command);
@@ -430,7 +463,7 @@ SH;
             $service->run(new FilebotJobModel(
                 paths: [$folderPath, $filePath],
                 label: 'tv',
-                dryRun: true,
+                action: 'test',
             ));
 
             self::assertCount(10, $logger->records);

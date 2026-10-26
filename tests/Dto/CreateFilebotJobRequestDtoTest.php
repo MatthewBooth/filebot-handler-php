@@ -15,11 +15,10 @@ final class CreateFilebotJobRequestDtoTest extends TestCase
 
         self::assertSame('Airdate', $request->order);
         self::assertSame('skip', $request->conflict);
+        self::assertSame('copy', $request->action);
         self::assertSame('', $request->mediaId);
         self::assertFalse($request->strict);
         self::assertTrue($request->artwork);
-        self::assertFalse($request->overwrite);
-        self::assertFalse($request->dryRun);
 
         self::assertEquals(new FilebotJobModel(
             paths: ['/media/example.mkv'],
@@ -34,11 +33,10 @@ final class CreateFilebotJobRequestDtoTest extends TestCase
             label: 'anime',
             order: 'Absolute',
             conflict: 'replace',
+            action: 'move',
             mediaId: 'show-42',
             strict: true,
             artwork: false,
-            overwrite: true,
-            dryRun: true,
         );
 
         self::assertEquals(new FilebotJobModel(
@@ -46,11 +44,10 @@ final class CreateFilebotJobRequestDtoTest extends TestCase
             label: 'anime',
             order: 'Absolute',
             conflict: 'replace',
+            action: 'move',
             mediaId: 'show-42',
             strict: true,
             artwork: false,
-            overwrite: true,
-            dryRun: true,
         ), $request->toFilebotJob());
     }
 
@@ -63,6 +60,7 @@ final class CreateFilebotJobRequestDtoTest extends TestCase
             label: 'tv',
             order: 'DVD',
             conflict: 'fail',
+            action: 'test',
         )));
 
         $violations = $validator->validate(new CreateFilebotJobRequestDto(
@@ -70,9 +68,10 @@ final class CreateFilebotJobRequestDtoTest extends TestCase
             label: 'documentary',
             order: 'invalid',
             conflict: 'invalid',
+            action: 'invalid',
         ));
 
-        self::assertCount(5, $violations);
+        self::assertCount(6, $violations);
     }
 
     public function testRejectsBlankAndNonStringPaths(): void

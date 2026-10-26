@@ -19,6 +19,12 @@ final readonly class FilebotConfig
         #[Autowire(env: 'FILEBOT_LOG_LEVEL')]
         public string $filebotLogLevel,
 
+        #[Autowire(env: 'PLEX_HOST')]
+        public string $plexHost,
+
+        #[Autowire(env: 'PLEX_TOKEN')]
+        public string $plexToken,
+
         #[Autowire(env: 'AMC_LOG_DIR')]
         public string $amcLogDir,
 

@@ -32,11 +32,10 @@ final class FilebotJobMessageHandlerTest extends TestCase
             label: 'tv',
             order: 'Airdate',
             conflict: 'auto',
+            action: 'test',
             mediaId: '12345',
             strict: true,
             artwork: true,
-            overwrite: false,
-            dryRun: true,
         );
 
         $handler = new FilebotJobMessageHandler($logger, $runner);
@@ -52,10 +51,9 @@ final class FilebotJobMessageHandlerTest extends TestCase
         self::assertSame('tv', $logger->records[0]['context']['label']);
         self::assertSame('Airdate', $logger->records[0]['context']['order']);
         self::assertSame('auto', $logger->records[0]['context']['conflict']);
+        self::assertSame('test', $logger->records[0]['context']['action']);
         self::assertSame('12345', $logger->records[0]['context']['mediaId']);
         self::assertTrue($logger->records[0]['context']['strict']);
         self::assertTrue($logger->records[0]['context']['artwork']);
-        self::assertFalse($logger->records[0]['context']['overwrite']);
-        self::assertTrue($logger->records[0]['context']['dryRun']);
     }
 }

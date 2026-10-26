@@ -31,15 +31,15 @@ final readonly class CreateFilebotJobRequestDto
         #[Assert\Choice(choices: ['skip', 'replace', 'auto', 'index', 'fail'])]
         public string $conflict = 'skip',
 
+        #[Assert\NotBlank]
+        #[Assert\Choice(choices: ['test', 'copy', 'move'])]
+        public string $action = 'copy',
+
         public string $mediaId = '',
 
         public bool $strict = false,
 
-        public bool $artwork = true,
-
-        public bool $overwrite = false,
-
-        public bool $dryRun = false
+        public bool $artwork = true
     ) {
     }
 
@@ -49,11 +49,10 @@ final readonly class CreateFilebotJobRequestDto
             label: $this->label,
             order: $this->order,
             conflict: $this->conflict,
+            action: $this->action,
             mediaId: $this->mediaId,
             strict: $this->strict,
-            artwork: $this->artwork,
-            overwrite: $this->overwrite,
-            dryRun: $this->dryRun
+            artwork: $this->artwork
         );
     }
 }

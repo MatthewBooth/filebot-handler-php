@@ -117,10 +117,8 @@ final readonly class FilebotRunnerService implements FilebotRunnerInterface
             return false;
         }
 
-        foreach ($stderr as $line) {
-            if (preg_match('/^Failed to detect subtitle language: .*: Subtitle format not supported$/', $line) !== 1) {
-                return false;
-            }
+        if (array_any($stderr, fn($line) => preg_match('/^Failed to detect subtitle language: .*: Subtitle format not supported$/', $line) !== 1)) {
+            return false;
         }
 
         return $exactCopyFailureCount > 0 && $finishedWithoutProcessing;
@@ -163,8 +161,6 @@ final readonly class FilebotRunnerService implements FilebotRunnerInterface
      */
     private function buildCommand(string $path, FilebotJobModel $job): array
     {
-        $action = $job->dryRun ? 'test' : 'copy';
-        $conflict = $job->overwrite ? 'replace' : $job->conflict;
         $file = $this->resolvePath($path);
         $utKind = $this->generateKind($path);
         $utTitle = basename($file);
@@ -176,9 +172,9 @@ final readonly class FilebotRunnerService implements FilebotRunnerInterface
             '--output',
             $this->config->storageRoot,
             '--action',
-            $action,
+            $job->action,
             '--conflict',
-            $conflict,
+            $job->conflict,
             '--lang',
             $this->config->filebotLang,
             '--log',
@@ -194,6 +190,19 @@ final readonly class FilebotRunnerService implements FilebotRunnerInterface
             $command[] = '-non-strict';
         }
 
+        $format = <<<'GROOVY'
+            {plex.derive{
+                def tags = [
+                    any{vf}{null},
+                    any{vc}{null},
+                    any{hdr}{SDR},
+                    any{ac}{null}
+                ].findAll{ it }
+
+                tags ? " [${tags.join(' ')}]" : ''
+            }.tail}
+        GROOVY;
+
         $defs = [
             "unsorted=" . ($this->config->amcUnsorted ? 'y' : 'n'),
             "clean=" . ($this->config->amcClean ? 'y' : 'n'),
@@ -208,10 +217,14 @@ final readonly class FilebotRunnerService implements FilebotRunnerInterface
             "animeDB=" . $this->config->amcAnimeDb,
             "minLengthMS=" . $this->config->amcMinLength,
             "minFileSize=" . $this->config->amcMinFilesize,
-            "movieFormat=" . $this->config->storageRoot . "/Films/{plex.tail}",
-            "seriesFormat=" . $this->config->storageRoot . "/TV/{plex.tail}",
-            "animeFormat=" . $this->config->storageRoot . "/TV/{plex.tail}",
+            "movieFormat=" . $this->config->storageRoot . '/Films/' . $format,
+            "seriesFormat=" . $this->config->storageRoot . '/TV/' . $format,
+            "animeFormat=" . $this->config->storageRoot . '/TV/' . $format,
         ];
+
+        if ($this->config->plexHost && $this->config->plexToken) {
+            $defs[] = "plex=" . $this->config->plexHost . ":" . $this->config->plexToken;
+        }
 
         foreach ($defs as $def) {
             $command[] = "--def";
@@ -223,13 +236,10 @@ final readonly class FilebotRunnerService implements FilebotRunnerInterface
 
     private function resolvePath(string $path): string
     {
-        $root = Path::canonicalize($this->config->torrentsRoot);
-        $resolvedPath = Path::makeAbsolute($path, $root);
-
-        if (!Path::isBasePath($root, $resolvedPath)) {
-            throw new RuntimeException('Path must be under the torrents root: ' . $path, Response::HTTP_BAD_REQUEST);
+        if (!Path::isAbsolute($path)) {
+            throw new RuntimeException('Path must be absolute: ' . $path, Response::HTTP_BAD_REQUEST);
         }
 
-        return $resolvedPath;
+        return Path::canonicalize($path);
     }
 }

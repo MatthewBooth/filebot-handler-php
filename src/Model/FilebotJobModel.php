@@ -11,11 +11,10 @@ final readonly class FilebotJobModel {
         public string $label,
         public string $order = 'Airdate',
         public string $conflict = 'skip',
+        public string $action = 'copy',
         public string $mediaId = '',
         public bool $strict = false,
         public bool $artwork = true,
-        public bool $overwrite = false,
-        public bool $dryRun = false
     ) {
     }
 
@@ -25,11 +24,10 @@ final readonly class FilebotJobModel {
      *     label: string,
      *     order: string,
      *     conflict: string,
+     *     action: string,
      *     mediaId: string,
      *     strict: bool,
-     *     artwork: bool,
-     *     overwrite: bool,
-     *     dryRun: bool
+     *     artwork: bool
      * }
      */
     public function toLogContext(): array
@@ -39,11 +37,10 @@ final readonly class FilebotJobModel {
             'label' => $this->label,
             'order' => $this->order,
             'conflict' => $this->conflict,
+            'action' => $this->action,
             'mediaId' => $this->mediaId,
             'strict' => $this->strict,
             'artwork' => $this->artwork,
-            'overwrite' => $this->overwrite,
-            'dryRun' => $this->dryRun,
         ];
     }
 }

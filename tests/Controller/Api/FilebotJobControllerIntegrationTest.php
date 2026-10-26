@@ -19,11 +19,10 @@ final class FilebotJobControllerIntegrationTest extends WebTestCase
                 'label' => 'tv',
                 'order' => 'Airdate',
                 'conflict' => 'auto',
+                'action' => 'test',
                 'mediaId' => '12345',
                 'strict' => true,
                 'artwork' => true,
-                'dryRun' => true,
-                'overwrite' => false,
             ], JSON_THROW_ON_ERROR)
         );
 
@@ -47,8 +46,7 @@ final class FilebotJobControllerIntegrationTest extends WebTestCase
             content: json_encode([
                 'paths' => [],
                 'label' => 'tv',
-                'dryRun' => true,
-                'overwrite' => false,
+                'action' => 'test',
             ], JSON_THROW_ON_ERROR)
         );
 
@@ -73,8 +71,7 @@ final class FilebotJobControllerIntegrationTest extends WebTestCase
             content: json_encode([
                 'paths' => ['/media/incoming/example.mkv'],
                 'label' => 'documentary',
-                'dryRun' => true,
-                'overwrite' => false,
+                'action' => 'test',
             ], JSON_THROW_ON_ERROR)
         );
 
