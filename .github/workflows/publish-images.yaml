@@ -3,7 +3,7 @@ name: Build and publish Docker images
 on:
     pull_request:
     push:
-        branches: [main]
+        branches: [main, develop]
         tags: ['v*']
     workflow_dispatch:
 
@@ -19,9 +19,9 @@ jobs:
             matrix:
                 include:
                     - target: php
-                      role: api
+                      repository: filebot-handler-api
                     - target: worker
-                      role: worker
+                      repository: filebot-handler-worker
 
         steps:
             - name: Check out source
@@ -41,13 +41,15 @@ jobs:
               id: metadata
               uses: docker/metadata-action@v6
               with:
-                  images: ${{ secrets.DOCKERHUB_USERNAME || 'dockerhub-username' }}/filebot-handler-php
+                  images: ${{ secrets.DOCKERHUB_USERNAME || 'dockerhub-username' }}/${{ matrix.repository }}
                   flavor: latest=false
                   tags: |
-                      type=raw,value=${{ matrix.role }}-latest,enable={{is_default_branch}}
-                      type=sha,prefix=${{ matrix.role }}-sha-
-                      type=semver,pattern={{version}},prefix=${{ matrix.role }}-
-                      type=semver,pattern={{major}}.{{minor}},prefix=${{ matrix.role }}-
+                      type=raw,value=latest,enable={{is_default_branch}}
+                      type=ref,event=branch
+                      type=sha
+                      type=semver,pattern={{version}}
+                      type=semver,pattern={{major}}.{{minor}}
+                      type=semver,pattern={{major}}
 
             - name: Build and publish image
               uses: docker/build-push-action@v7
