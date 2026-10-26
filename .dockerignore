@@ -1,0 +1,12 @@
+.git
+.github
+.idea
+.phpunit.cache
+.env*
+vendor
+var
+tests
+public/bundles
+data
+docker-compose.yaml
+README.md

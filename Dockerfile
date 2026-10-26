@@ -42,14 +42,46 @@ WORKDIR /app
 ENV HOME=/tmp \
     COMPOSER_HOME=/tmp/composer
 
+ENV APP_ENV=prod \
+    APP_DEBUG=0
+
 EXPOSE 9000
 
 HEALTHCHECK --interval=30s --timeout=5s --retries=3 --start-period=10s \
     CMD php bin/console about --no-interaction >/dev/null 2>&1 || exit 1
 
+COPY composer.json composer.lock symfony.lock ./
+RUN composer install \
+        --no-dev \
+        --no-interaction \
+        --no-progress \
+        --no-scripts \
+        --no-autoloader \
+        --prefer-dist
+
+COPY . /app
+
+RUN composer dump-autoload --no-dev --classmap-authoritative --no-scripts \
+    && touch .env \
+    && APP_SECRET=build-only-secret \
+        DEFAULT_URI=http://localhost \
+        MESSENGER_TRANSPORT_DSN=redis://redis:6379/messages \
+        php bin/console assets:install public \
+    && mkdir -p var/cache var/log \
+    && chmod -R 0777 var
+
 FROM app-base AS php
 
 CMD ["php-fpm", "-F"]
+
+FROM nginx:stable-alpine AS nginx
+
+RUN apk add --no-cache tzdata
+
+COPY --from=php /app/public /app/public
+COPY docker/nginx/default.conf /etc/nginx/conf.d/default.conf
+
+EXPOSE 80
 
 FROM app-base AS worker
 

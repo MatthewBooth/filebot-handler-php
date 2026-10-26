@@ -56,6 +56,20 @@ Defaults are declared in `config/services.yaml`; environment variables or
 Docker volume mount paths. FileBot database and subtitle settings use the
 `AMC_*` variables, and `PLEX_HOST` / `PLEX_TOKEN` are optional.
 
+For a production deployment, provide `APP_SECRET`, `DEFAULT_URI`, and
+`MESSENGER_TRANSPORT_DSN` as runtime environment variables. Portainer can also
+provide the FileBot license path and optional OpenSubtitles credentials to the
+worker.
+
+## Container images
+
+The `Build and publish Docker images` workflow builds standalone `php` and
+`worker` images. Pull requests build the images without publishing;
+pushes to the default branch publish `latest` and a commit SHA tag, while `v*`
+tags publish version tags. Set the `DOCKERHUB_USERNAME` repository variable
+and `DOCKERHUB_TOKEN` secret to enable publishing. The workflow publishes only;
+it does not deploy to the NAS.
+
 ## Tests
 
 Run the unit and integration suite with:

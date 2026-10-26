@@ -52,7 +52,8 @@ services:
   nginx:
     image: filebot-handler-nginx:dev
     build:
-      context: ./docker/nginx
+      context: .
+      target: nginx
     profiles:
       - dev
     ports:
