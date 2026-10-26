@@ -10,9 +10,6 @@ on:
 permissions:
     contents: read
 
-env:
-    DOCKERHUB_USERNAME: ${{ vars.DOCKERHUB_USERNAME || 'dockerhub-username' }}
-
 jobs:
     publish:
         name: ${{ matrix.target }} image
@@ -22,7 +19,9 @@ jobs:
             matrix:
                 include:
                     - target: php
+                      role: api
                     - target: worker
+                      role: worker
 
         steps:
             - name: Check out source
@@ -35,19 +34,20 @@ jobs:
               if: github.event_name != 'pull_request'
               uses: docker/login-action@v4
               with:
-                  username: ${{ vars.DOCKERHUB_USERNAME }}
+                  username: ${{ secrets.DOCKERHUB_USERNAME }}
                   password: ${{ secrets.DOCKERHUB_TOKEN }}
 
             - name: Generate image metadata
               id: metadata
               uses: docker/metadata-action@v6
               with:
-                  images: ${{ env.DOCKERHUB_USERNAME }}/filebot-handler-${{ matrix.target }}
+                  images: ${{ secrets.DOCKERHUB_USERNAME || 'dockerhub-username' }}/filebot-handler-php
+                  flavor: latest=false
                   tags: |
-                      type=raw,value=latest,enable={{is_default_branch}}
-                      type=sha
-                      type=semver,pattern={{version}}
-                      type=semver,pattern={{major}}.{{minor}}
+                      type=raw,value=${{ matrix.role }}-latest,enable={{is_default_branch}}
+                      type=sha,prefix=${{ matrix.role }}-sha-
+                      type=semver,pattern={{version}},prefix=${{ matrix.role }}-
+                      type=semver,pattern={{major}}.{{minor}},prefix=${{ matrix.role }}-
 
             - name: Build and publish image
               uses: docker/build-push-action@v7

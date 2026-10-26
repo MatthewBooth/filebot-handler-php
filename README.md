@@ -65,10 +65,11 @@ worker.
 
 The `Build and publish Docker images` workflow builds standalone `php` and
 `worker` images. Pull requests build the images without publishing;
-pushes to the default branch publish `latest` and a commit SHA tag, while `v*`
-tags publish version tags. Set the `DOCKERHUB_USERNAME` repository variable
-and `DOCKERHUB_TOKEN` secret to enable publishing. The workflow publishes only;
-it does not deploy to the NAS.
+pushes to the default branch publish `api-latest` / `worker-latest` and
+role-specific commit SHA tags to the same `filebot-handler-php` Docker Hub
+repository. `v*` tags publish role-prefixed version tags. Set the
+`DOCKERHUB_USERNAME` and `DOCKERHUB_TOKEN` repository secrets to enable
+publishing. The workflow publishes only; it does not deploy to the NAS.
 
 ## Tests
 
