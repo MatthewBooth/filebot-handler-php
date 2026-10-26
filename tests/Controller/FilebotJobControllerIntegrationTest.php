@@ -15,7 +15,7 @@ final class FilebotJobControllerIntegrationTest extends WebTestCase
         try {
             $client->request(
                 'POST',
-                '/api/v1/jobs',
+                '/api/jobs',
                 server: ['CONTENT_TYPE' => 'application/json'],
                 content: json_encode([
                     'path' => $path,
@@ -47,7 +47,7 @@ final class FilebotJobControllerIntegrationTest extends WebTestCase
 
         $client->request(
             'POST',
-            '/api/v1/jobs',
+            '/api/jobs',
             server: ['CONTENT_TYPE' => 'application/json'],
             content: json_encode([
                 'path' => '',
@@ -72,7 +72,7 @@ final class FilebotJobControllerIntegrationTest extends WebTestCase
 
         $client->request(
             'POST',
-            '/api/v1/jobs',
+            '/api/jobs',
             server: ['CONTENT_TYPE' => 'application/json'],
             content: json_encode([
                 'path' => '/path/that/does/not/exist.mkv',
@@ -93,7 +93,7 @@ final class FilebotJobControllerIntegrationTest extends WebTestCase
 
         $client->request(
             'POST',
-            '/api/v1/jobs',
+            '/api/jobs',
             server: ['CONTENT_TYPE' => 'application/json'],
             content: json_encode([
                 'path' => '/media/incoming/example.mkv',

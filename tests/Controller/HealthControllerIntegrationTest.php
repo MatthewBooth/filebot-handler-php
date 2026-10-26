@@ -9,7 +9,7 @@ final class HealthControllerIntegrationTest extends WebTestCase
     public function testIndex(): void
     {
         $client = self::createClient();
-        $client->request('GET', '/api/v1/health');
+        $client->request('GET', '/api/health');
 
         self::assertResponseIsSuccessful();
         self::assertJsonStringEqualsJsonString(

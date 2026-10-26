@@ -11,11 +11,14 @@ docker compose --profile dev up --build
 ```
 
 The API is available at `http://localhost:8080`. Check it with
-`GET /api/v1/health`.
+`GET /api/health`.
+
+Browse the interactive Swagger UI at `http://localhost:8080/api/doc`. The
+generated OpenAPI document is available at `/api/doc.json` and `/api/doc.yaml`.
 
 ## Queue a job
 
-Send a `POST` request to `/api/v1/jobs` with JSON such as:
+Send a `POST` request to `/api/jobs` with JSON such as:
 
 ```json
 {
@@ -43,8 +46,8 @@ parameters.
 ## Logs
 
 FileBot output continues to go to Monolog and is also appended to
-`var/log/filebot/<torrent name>.log`. Per-torrent files include the job options,
-input path, FileBot output, and final result.
+`var/log/filebot/<torrent name>.log`. Per-torrent files contain the command and
+FileBot process output.
 
 ## Configuration
 

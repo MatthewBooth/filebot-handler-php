@@ -4,6 +4,7 @@ namespace App\Dto;
 
 use App\Message\FilebotJobMessage;
 use App\Validator\ExistingPath;
+use OpenApi\Attributes as OA;
 use Symfony\Component\Validator\Constraints as Assert;
 
 final readonly class CreateFilebotJobMessageDto
@@ -12,6 +13,7 @@ final readonly class CreateFilebotJobMessageDto
         #[Assert\NotBlank]
         #[Assert\Regex(pattern: '/^\/.+$/', message: 'Path must be absolute.')]
         #[ExistingPath]
+        #[OA\Property(description: 'Absolute path to an existing file or directory mounted in the API and worker containers.')]
         public string $path,
 
         #[Assert\NotBlank]
