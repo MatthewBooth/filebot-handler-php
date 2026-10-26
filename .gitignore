@@ -4,6 +4,10 @@
 *.ipr
 ###< JetBrains template ###
 
+###> Docker volumes ###
+/data
+###< Docker volumes ###
+
 ###> symfony/framework-bundle ###
 /.env.local
 /.env.local.php

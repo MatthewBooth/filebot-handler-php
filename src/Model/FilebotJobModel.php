@@ -10,7 +10,7 @@ final readonly class FilebotJobModel {
         public array $paths,
         public string $label,
         public string $order = 'Airdate',
-        public string $conflict = 'auto',
+        public string $conflict = 'skip',
         public string $mediaId = '',
         public bool $strict = false,
         public bool $artwork = true,

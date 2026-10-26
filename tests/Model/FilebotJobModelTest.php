@@ -15,7 +15,7 @@ final class FilebotJobModelTest extends TestCase
             'paths' => ['/media/example.mkv'],
             'label' => 'tv',
             'order' => 'Airdate',
-            'conflict' => 'auto',
+            'conflict' => 'skip',
             'mediaId' => '',
             'strict' => false,
             'artwork' => true,

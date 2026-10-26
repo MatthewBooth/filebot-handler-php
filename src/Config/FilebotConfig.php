@@ -10,8 +10,8 @@ final readonly class FilebotConfig
         #[Autowire(env: 'TORRENTS_ROOT')]
         public string $torrentsRoot,
 
-        #[Autowire(env: 'OUTPUT_DIR')]
-        public string $outputDir,
+        #[Autowire(env: 'STORAGE_ROOT')]
+        public string $storageRoot,
 
         #[Autowire(env: 'FILEBOT_LANG')]
         public string $filebotLang,

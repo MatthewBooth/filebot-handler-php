@@ -29,7 +29,7 @@ final readonly class CreateFilebotJobRequestDto
 
         #[Assert\NotBlank]
         #[Assert\Choice(choices: ['skip', 'replace', 'auto', 'index', 'fail'])]
-        public string $conflict = 'auto',
+        public string $conflict = 'skip',
 
         public string $mediaId = '',
 

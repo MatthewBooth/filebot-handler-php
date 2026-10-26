@@ -11,7 +11,7 @@ final class FilebotConfigTest extends TestCase
     {
         $config = new FilebotConfig(
             torrentsRoot: '/media/incoming',
-            outputDir: '/media/output',
+            storageRoot: '/media/output',
             filebotLang: 'en',
             filebotLogLevel: 'info',
             amcLogDir: '/var/log/filebot',
@@ -27,7 +27,7 @@ final class FilebotConfigTest extends TestCase
         );
 
         self::assertSame('/media/incoming', $config->torrentsRoot);
-        self::assertSame('/media/output', $config->outputDir);
+        self::assertSame('/media/output', $config->storageRoot);
         self::assertSame('en', $config->filebotLang);
         self::assertSame('info', $config->filebotLogLevel);
         self::assertSame('/var/log/filebot', $config->amcLogDir);

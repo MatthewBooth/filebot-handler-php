@@ -14,7 +14,7 @@ final class CreateFilebotJobRequestDtoTest extends TestCase
         $request = new CreateFilebotJobRequestDto(paths: ['/media/example.mkv'], label: 'movie');
 
         self::assertSame('Airdate', $request->order);
-        self::assertSame('auto', $request->conflict);
+        self::assertSame('skip', $request->conflict);
         self::assertSame('', $request->mediaId);
         self::assertFalse($request->strict);
         self::assertTrue($request->artwork);

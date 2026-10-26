@@ -1,8 +1,11 @@
-FROM php:8.4-fpm-alpine
+FROM php:8.4-fpm-alpine AS app-base
+
+ENV TZ=UTC
 
 RUN apk add --no-cache \
         git \
         unzip \
+        tzdata \
         icu-libs \
         libzip \
     && apk add --no-cache --virtual .build-deps \
@@ -29,6 +32,11 @@ COPY --from=composer:2 /usr/bin/composer /usr/local/bin/composer
 COPY --from=ghcr.io/symfony-cli/symfony-cli:latest \
     /usr/local/bin/symfony /usr/local/bin/symfony
 
+COPY docker/php/entrypoint.sh /usr/local/bin/php-entrypoint.sh
+RUN chmod +x /usr/local/bin/php-entrypoint.sh
+
+ENTRYPOINT ["/usr/local/bin/php-entrypoint.sh"]
+
 WORKDIR /app
 
 ENV HOME=/tmp \
@@ -39,4 +47,36 @@ EXPOSE 9000
 HEALTHCHECK --interval=30s --timeout=5s --retries=3 --start-period=10s \
     CMD php -r '$response = require "/app/public/index.php"; exit(0);' || exit 1
 
+FROM app-base AS php
+
 CMD ["php-fpm", "-F"]
+
+FROM app-base AS worker
+
+ARG FILEBOT_VERSION=5.3.0
+ARG FILEBOT_SHA256=633d798a917607051b4f61be37b5ad923457050708c7e7eea99c09957583b575
+
+ENV FILEBOT_HOME=/opt/filebot \
+    LANG=C.UTF-8
+
+COPY docker/worker/entrypoint.sh /usr/local/bin/entrypoint.sh
+RUN chmod +x /usr/local/bin/entrypoint.sh
+
+RUN apk add --no-cache \
+        openjdk17-jre-headless \
+        mediainfo \
+        chromaprint \
+        p7zip \
+        wget \
+        xz \
+    && mkdir -p "$FILEBOT_HOME" /filebot \
+    && chown 1000:1000 /filebot \
+    && wget -O /tmp/filebot.tar.xz "https://get.filebot.net/filebot/FileBot_${FILEBOT_VERSION}/FileBot_${FILEBOT_VERSION}-portable.tar.xz" \
+    && echo "$FILEBOT_SHA256  /tmp/filebot.tar.xz" | sha256sum -c - \
+    && tar --extract --file /tmp/filebot.tar.xz --directory "$FILEBOT_HOME" \
+    && rm -f /tmp/filebot.tar.xz \
+    && find "$FILEBOT_HOME/lib" -type f -not -name libjnidispatch.so -delete \
+    && ln -s /filebot "$FILEBOT_HOME/data" \
+    && ln -s "$FILEBOT_HOME/filebot.sh" /usr/local/bin/filebot
+
+CMD ["/usr/local/bin/entrypoint.sh"]

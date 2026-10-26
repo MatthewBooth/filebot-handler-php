@@ -10,6 +10,12 @@ when@dev:
                 path: "%kernel.logs_dir%/%kernel.environment%.log"
                 level: debug
                 channels: ["!event"]
+            container:
+                type: stream
+                path: "php://stderr"
+                level: info
+                channels: ["!event"]
+                formatter: monolog.formatter.line
             console:
                 type: console
                 process_psr_3_messages: false
