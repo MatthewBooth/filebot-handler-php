@@ -22,6 +22,8 @@ jobs:
                       repository: filebot-handler-api
                     - target: worker
                       repository: filebot-handler-worker
+                    - target: nginx
+                      repository: filebot-handler-nginx
 
         steps:
             - name: Check out source
