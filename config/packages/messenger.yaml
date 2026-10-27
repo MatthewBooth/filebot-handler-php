@@ -19,4 +19,7 @@ when@test:
     framework:
         messenger:
             transports:
-                async: 'in-memory://'
+                async:
+                    dsn: 'in-memory://'
+                    options:
+                        consumer: phpunit

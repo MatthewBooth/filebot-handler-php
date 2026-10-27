@@ -31,7 +31,7 @@ final class FilebotJobController extends AbstractController
             ),
         ],
         responses: [
-            new OA\Response(response: 200, description: 'Queued jobs and their message details.'),
+            new OA\Response(response: 200, description: 'Jobs include queued or processing status. Processing jobs include worker, idleForMs, and deliveryCount.'),
             new OA\Response(response: 400, description: 'The limit is outside the supported range.'),
             new OA\Response(response: 503, description: 'The queue could not be inspected.'),
         ],
@@ -64,7 +64,7 @@ final class FilebotJobController extends AbstractController
         tags: ['Jobs'],
         parameters: [new OA\Parameter(name: 'id', in: 'path', required: true, schema: new OA\Schema(type: 'string'))],
         responses: [
-            new OA\Response(response: 200, description: 'The queued job and its message details.'),
+            new OA\Response(response: 200, description: 'The job, its message details, and queued or processing status. Processing jobs include worker, idleForMs, and deliveryCount.'),
             new OA\Response(response: 404, description: 'No queued FileBot job has this ID.'),
             new OA\Response(response: 503, description: 'The queue could not be inspected.'),
         ],

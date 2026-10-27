@@ -17,11 +17,12 @@ final class FilebotJobQueueTest extends TestCase
         $transport->enqueue('2-0', new FilebotJobMessage('/media/second.mkv', 'tv'));
         $transport->enqueue('3-0', new \stdClass());
 
-        $jobs = (new FilebotJobQueue($transport))->list(1);
+        $jobs = (new FilebotJobQueue($transport, $transport))->list(1);
 
         self::assertSame([
             [
                 'id' => '1-0',
+                'status' => 'queued',
                 'message' => [
                     'path' => '/media/first.mkv',
                     'label' => 'movie',
@@ -41,11 +42,25 @@ final class FilebotJobQueueTest extends TestCase
         $transport = new ListableInMemoryTransport();
         $transport->enqueue('1-0', new FilebotJobMessage('/media/example.mkv', 'tv'));
         $transport->enqueue('2-0', new \stdClass());
-        $queue = new FilebotJobQueue($transport);
+        $queue = new FilebotJobQueue($transport, $transport);
 
         self::assertSame('1-0', $queue->find('1-0')['id']);
         self::assertNull($queue->find('2-0'));
         self::assertNull($queue->find('missing'));
+    }
+
+    public function testListIncludesPendingWorkerDetailsForProcessingJobs(): void
+    {
+        $transport = new ListableInMemoryTransport();
+        $transport->enqueue('1-0', new FilebotJobMessage('/media/example.mkv', 'tv'));
+        $transport->markPending('1-0', 'worker-1', 1200, 2);
+
+        $jobs = (new FilebotJobQueue($transport, $transport))->list();
+
+        self::assertSame('processing', $jobs[0]['status']);
+        self::assertSame('worker-1', $jobs[0]['worker']);
+        self::assertSame(1200, $jobs[0]['idleForMs']);
+        self::assertSame(2, $jobs[0]['deliveryCount']);
     }
 
     public function testDeleteAcknowledgesOnlyExistingFilebotJobs(): void
@@ -53,7 +68,7 @@ final class FilebotJobQueueTest extends TestCase
         $transport = new ListableInMemoryTransport();
         $transport->enqueue('1-0', new FilebotJobMessage('/media/example.mkv', 'tv'));
         $transport->enqueue('2-0', new \stdClass());
-        $queue = new FilebotJobQueue($transport);
+        $queue = new FilebotJobQueue($transport, $transport);
 
         self::assertTrue($queue->delete('1-0'));
         self::assertFalse($queue->delete('2-0'));
@@ -63,7 +78,7 @@ final class FilebotJobQueueTest extends TestCase
 
     public function testListRequiresAListableTransport(): void
     {
-        $queue = new FilebotJobQueue(new InMemoryTransport());
+        $queue = new FilebotJobQueue(new InMemoryTransport(), new ListableInMemoryTransport());
 
         $this->expectException(\LogicException::class);
         $queue->list();

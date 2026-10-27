@@ -43,19 +43,22 @@ final class FilebotJobControllerUnitTest extends TestCase
 
         $response = $controller->list(
             Request::create('/api/jobs?limit=10'),
-            new FilebotJobQueue($transport),
+            new FilebotJobQueue($transport, $transport),
             new InMemoryLogger(),
         );
 
         self::assertSame(200, $response->getStatusCode());
-        self::assertSame('1-0', json_decode($response->getContent(), true, flags: JSON_THROW_ON_ERROR)['jobs'][0]['id']);
+        $job = json_decode($response->getContent(), true, flags: JSON_THROW_ON_ERROR)['jobs'][0];
+        self::assertSame('1-0', $job['id']);
+        self::assertSame('queued', $job['status']);
     }
 
     public function testListRejectsOutOfRangeLimit(): void
     {
+        $transport = new ListableInMemoryTransport();
         $response = $this->createController()->list(
             Request::create('/api/jobs?limit=501'),
-            new FilebotJobQueue(new ListableInMemoryTransport()),
+            new FilebotJobQueue($transport, $transport),
             new InMemoryLogger(),
         );
 
@@ -64,9 +67,10 @@ final class FilebotJobControllerUnitTest extends TestCase
 
     public function testShowReturnsNotFoundForUnknownJob(): void
     {
+        $transport = new ListableInMemoryTransport();
         $response = $this->createController()->show(
             'missing',
-            new FilebotJobQueue(new ListableInMemoryTransport()),
+            new FilebotJobQueue($transport, $transport),
             new InMemoryLogger(),
         );
 
@@ -80,12 +84,14 @@ final class FilebotJobControllerUnitTest extends TestCase
 
         $response = $this->createController()->show(
             '1-0',
-            new FilebotJobQueue($transport),
+            new FilebotJobQueue($transport, $transport),
             new InMemoryLogger(),
         );
 
         self::assertSame(200, $response->getStatusCode());
-        self::assertSame('/media/example.mkv', json_decode($response->getContent(), true, flags: JSON_THROW_ON_ERROR)['message']['path']);
+        $job = json_decode($response->getContent(), true, flags: JSON_THROW_ON_ERROR);
+        self::assertSame('/media/example.mkv', $job['message']['path']);
+        self::assertSame('queued', $job['status']);
     }
 
     public function testDeleteRemovesQueuedJob(): void
@@ -95,7 +101,7 @@ final class FilebotJobControllerUnitTest extends TestCase
 
         $response = $this->createController()->delete(
             '1-0',
-            new FilebotJobQueue($transport),
+            new FilebotJobQueue($transport, $transport),
             new InMemoryLogger(),
         );
 
@@ -105,9 +111,10 @@ final class FilebotJobControllerUnitTest extends TestCase
 
     public function testDeleteReturnsNotFoundForUnknownJob(): void
     {
+        $transport = new ListableInMemoryTransport();
         $response = $this->createController()->delete(
             'missing',
-            new FilebotJobQueue(new ListableInMemoryTransport()),
+            new FilebotJobQueue($transport, $transport),
             new InMemoryLogger(),
         );
 
