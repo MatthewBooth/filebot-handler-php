@@ -4,6 +4,10 @@ framework:
             # https://symfony.com/doc/current/messenger.html#transport-configuration
             async:
                 dsn: '%env(MESSENGER_TRANSPORT_DSN)%'
+                options:
+                    consumer: '%env(HOSTNAME)%'
+                    delete_after_ack: true
+                    redeliver_timeout: 7200
                 retry_strategy:
                     max_retries: 0
 
