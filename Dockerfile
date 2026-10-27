@@ -1,7 +1,21 @@
-FROM php:8.4-fpm-alpine AS app-base
 
-ENV TZ=UTC
+# syntax=docker/dockerfile:1
 
+# ============================================================
+# 1. PHP RUNTIME
+# Shared by the API, application builder and worker.
+# Contains no application source code.
+# ============================================================
+
+FROM php:8.4-fpm-alpine AS php-runtime
+
+ENV TZ=UTC \
+    HOME=/tmp \
+    COMPOSER_HOME=/tmp/composer \
+    APP_ENV=prod \
+    APP_DEBUG=0
+
+# Install PHP system dependencies and extensions
 RUN apk add --no-cache \
         git \
         unzip \
@@ -18,39 +32,89 @@ RUN apk add --no-cache \
         opcache \
     && apk del .build-deps
 
-
 # Install PHP Redis extension
 RUN apk add --no-cache --virtual .redis-build-deps $PHPIZE_DEPS \
     && pecl install redis \
     && docker-php-ext-enable redis \
     && apk del .redis-build-deps
 
+# Composer
+COPY --from=composer:2 \
+    /usr/bin/composer /usr/local/bin/composer
 
-COPY --from=composer:2 /usr/bin/composer /usr/local/bin/composer
-
-# Install Symfony CLI
+# Symfony CLI
 COPY --from=ghcr.io/symfony-cli/symfony-cli:latest \
     /usr/local/bin/symfony /usr/local/bin/symfony
 
-COPY docker/php/entrypoint.sh /usr/local/bin/php-entrypoint.sh
-RUN chmod +x /usr/local/bin/php-entrypoint.sh
-
-ENTRYPOINT ["/usr/local/bin/php-entrypoint.sh"]
+# Shared PHP entrypoint
+COPY --chmod=755 \
+    docker/php/entrypoint.sh \
+    /usr/local/bin/php-entrypoint.sh
 
 WORKDIR /app
 
-ENV HOME=/tmp \
-    COMPOSER_HOME=/tmp/composer
+ENTRYPOINT ["/usr/local/bin/php-entrypoint.sh"]
 
-ENV APP_ENV=prod \
-    APP_DEBUG=0
 
-EXPOSE 9000
+# ============================================================
+# 2. FILEBOT WORKER RUNTIME
+# Independent of Symfony source code.
+# Only rebuilds when dependencies, FileBot version, or
+# the underlying PHP runtime change.
+# ============================================================
 
-HEALTHCHECK --interval=30s --timeout=5s --retries=3 --start-period=10s \
-    CMD php bin/console about --no-interaction >/dev/null 2>&1 || exit 1
+FROM php-runtime AS worker-runtime
 
+ARG FILEBOT_VERSION=5.3.0
+ARG FILEBOT_SHA256=633d798a917607051b4f61be37b5ad923457050708c7e7eea99c09957583b575
+
+ENV FILEBOT_HOME=/opt/filebot \
+    LANG=C.UTF-8
+
+# Install Java and media processing dependencies
+RUN apk add --no-cache \
+        openjdk17-jre-headless \
+        mediainfo \
+        chromaprint \
+        p7zip \
+        wget \
+        xz
+
+# Download, verify and install FileBot
+RUN mkdir -p "$FILEBOT_HOME" /filebot \
+    && chown 1000:1000 /filebot \
+    && wget -O /tmp/filebot.tar.xz \
+        "https://get.filebot.net/filebot/FileBot_${FILEBOT_VERSION}/FileBot_${FILEBOT_VERSION}-portable.tar.xz" \
+    && echo "$FILEBOT_SHA256  /tmp/filebot.tar.xz" | sha256sum -c - \
+    && tar --extract \
+        --file /tmp/filebot.tar.xz \
+        --directory "$FILEBOT_HOME" \
+    && rm -f /tmp/filebot.tar.xz \
+    && find "$FILEBOT_HOME/lib" \
+        -type f -not -name libjnidispatch.so -delete \
+    && ln -s /filebot "$FILEBOT_HOME/data" \
+    && ln -s "$FILEBOT_HOME/filebot.sh" /usr/local/bin/filebot
+
+# Copy entrypoint AFTER expensive dependency installation
+COPY --chmod=755 \
+    docker/worker/entrypoint.sh \
+    /usr/local/bin/entrypoint.sh
+
+
+# ============================================================
+# 3. SYMFONY APPLICATION BUILD
+# Dependencies and application code built independently
+# of the FileBot runtime.
+# ============================================================
+
+FROM php-runtime AS app-build
+
+WORKDIR /app
+
+# Copy dependency manifests first to maximise cache reuse
 COPY composer.json composer.lock symfony.lock ./
+
+# Install production dependencies
 RUN composer install \
         --no-dev \
         --no-interaction \
@@ -59,9 +123,14 @@ RUN composer install \
         --no-autoloader \
         --prefer-dist
 
+# Copy application source
 COPY . /app
 
-RUN composer dump-autoload --no-dev --classmap-authoritative --no-scripts \
+# Generate optimised autoloader and prepare Symfony
+RUN composer dump-autoload \
+        --no-dev \
+        --classmap-authoritative \
+        --no-scripts \
     && touch .env \
     && APP_SECRET=build-only-secret \
         DEFAULT_URI=http://localhost \
@@ -71,45 +140,53 @@ RUN composer dump-autoload --no-dev --classmap-authoritative --no-scripts \
     && mkdir -p var/cache var/log \
     && chmod -R 0777 var
 
-FROM app-base AS php
+
+# ============================================================
+# 4. PHP-FPM API IMAGE
+# GitHub Actions target: php
+# ============================================================
+
+FROM app-build AS php
+
+EXPOSE 9000
+
+# Verify PHP-FPM is listening and Symfony can bootstrap
+HEALTHCHECK --interval=30s --timeout=5s \
+    --retries=3 --start-period=10s \
+    CMD php -r '$s=@fsockopen("127.0.0.1",9000); if (!$s) exit(1); fclose($s);' \
+        && php bin/console about --no-interaction >/dev/null 2>&1
 
 CMD ["php-fpm", "-F"]
+
+
+# ============================================================
+# 5. NGINX IMAGE
+# GitHub Actions target: nginx
+# ============================================================
 
 FROM nginx:stable-alpine AS nginx
 
 RUN apk add --no-cache tzdata
 
-COPY --from=php /app/public /app/public
-COPY docker/nginx/default.conf /etc/nginx/conf.d/default.conf
+# Copy only Symfony's public assets
+COPY --from=app-build /app/public /app/public
+
+# Include Nginx configuration in the image
+COPY docker/nginx/default.conf \
+    /etc/nginx/conf.d/default.conf
 
 EXPOSE 80
 
-FROM app-base AS worker
 
-ARG FILEBOT_VERSION=5.3.0
-ARG FILEBOT_SHA256=633d798a917607051b4f61be37b5ad923457050708c7e7eea99c09957583b575
+# ============================================================
+# 6. FILEBOT WORKER IMAGE
+# GitHub Actions target: worker
+# Combines independently cached runtime and application.
+# ============================================================
 
-ENV FILEBOT_HOME=/opt/filebot \
-    LANG=C.UTF-8
+FROM worker-runtime AS worker
 
-COPY docker/worker/entrypoint.sh /usr/local/bin/entrypoint.sh
-RUN chmod +x /usr/local/bin/entrypoint.sh
-
-RUN apk add --no-cache \
-        openjdk17-jre-headless \
-        mediainfo \
-        chromaprint \
-        p7zip \
-        wget \
-        xz \
-    && mkdir -p "$FILEBOT_HOME" /filebot \
-    && chown 1000:1000 /filebot \
-    && wget -O /tmp/filebot.tar.xz "https://get.filebot.net/filebot/FileBot_${FILEBOT_VERSION}/FileBot_${FILEBOT_VERSION}-portable.tar.xz" \
-    && echo "$FILEBOT_SHA256  /tmp/filebot.tar.xz" | sha256sum -c - \
-    && tar --extract --file /tmp/filebot.tar.xz --directory "$FILEBOT_HOME" \
-    && rm -f /tmp/filebot.tar.xz \
-    && find "$FILEBOT_HOME/lib" -type f -not -name libjnidispatch.so -delete \
-    && ln -s /filebot "$FILEBOT_HOME/data" \
-    && ln -s "$FILEBOT_HOME/filebot.sh" /usr/local/bin/filebot
+# Add Symfony application to the prepared FileBot runtime
+COPY --from=app-build /app /app
 
 CMD ["/usr/local/bin/entrypoint.sh"]

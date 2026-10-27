@@ -10,3 +10,6 @@ public/bundles
 data
 docker-compose.yaml
 README.md
+.vscode
+*.log
+.DS_Store

@@ -1,3 +1,4 @@
+
 name: Build and publish Docker images
 
 on:
@@ -10,10 +11,76 @@ on:
 permissions:
     contents: read
 
+concurrency:
+    group: ${{ github.workflow }}-${{ github.ref }}
+    cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
 jobs:
+
+    # ==========================================================
+    # 1. PHPUNIT TESTS
+    # ==========================================================
+
+    test:
+        name: PHPUnit Tests
+        runs-on: ubuntu-latest
+        timeout-minutes: 15
+
+        env:
+            APP_ENV: test
+            APP_DEBUG: "1"
+            APP_SECRET: test-only-secret
+            TRUSTED_PROXIES: 127.0.0.1
+            DEFAULT_URI: http://localhost
+            MESSENGER_TRANSPORT_DSN: in-memory://
+
+        steps:
+            - name: Check out source
+              uses: actions/checkout@v6
+
+            - name: Set up PHP
+              uses: shivammathur/setup-php@v2
+              with:
+                  php-version: '8.4'
+                  extensions: intl, mbstring, pdo_mysql, zip, redis
+                  coverage: none
+                  tools: composer:v2
+              env:
+                  fail-fast: true
+
+            - name: Get Composer cache directory
+              id: composer-cache
+              run: echo "dir=$(composer config cache-files-dir)" >> "$GITHUB_OUTPUT"
+
+            - name: Cache Composer dependencies
+              uses: actions/cache@v4
+              with:
+                  path: ${{ steps.composer-cache.outputs.dir }}
+                  key: composer-${{ runner.os }}-php84-${{ hashFiles('composer.lock') }}
+                  restore-keys: |
+                      composer-${{ runner.os }}-php84-
+
+            - name: Install dependencies
+              run: |
+                  composer install \
+                    --prefer-dist \
+                    --no-interaction \
+                    --no-progress \
+                    --no-scripts
+
+            - name: Run PHPUnit tests
+              run: php bin/phpunit --testdox
+
+    # ==========================================================
+    # 2. BUILD AND PUBLISH DOCKER IMAGES
+    # ==========================================================
+
     publish:
         name: ${{ matrix.target }} image
+        needs: test
         runs-on: ubuntu-latest
+        timeout-minutes: 60
+
         strategy:
             fail-fast: false
             matrix:
@@ -48,7 +115,7 @@ jobs:
                   tags: |
                       type=raw,value=latest,enable={{is_default_branch}}
                       type=ref,event=branch
-                      type=sha
+                      type=sha,format=long
                       type=semver,pattern={{version}}
                       type=semver,pattern={{major}}.{{minor}}
                       type=semver,pattern={{major}}
@@ -60,8 +127,16 @@ jobs:
                   file: Dockerfile
                   target: ${{ matrix.target }}
                   platforms: linux/amd64
+
                   push: ${{ github.event_name != 'pull_request' }}
+
                   tags: ${{ steps.metadata.outputs.tags }}
                   labels: ${{ steps.metadata.outputs.labels }}
-                  cache-from: type=gha,scope=${{ matrix.target }}
+
+                  sbom: ${{ github.event_name != 'pull_request' }}
+
+                  cache-from: |
+                      type=gha,scope=${{ matrix.target }}
+                      type=gha,scope=php
+
                   cache-to: type=gha,mode=max,scope=${{ matrix.target }}
