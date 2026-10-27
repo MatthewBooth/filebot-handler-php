@@ -65,6 +65,7 @@ RUN composer dump-autoload --no-dev --classmap-authoritative --no-scripts \
     && touch .env \
     && APP_SECRET=build-only-secret \
         DEFAULT_URI=http://localhost \
+        TRUSTED_PROXIES="" \
         MESSENGER_TRANSPORT_DSN=redis://redis:6379/messages \
         php bin/console assets:install public \
     && mkdir -p var/cache var/log \
