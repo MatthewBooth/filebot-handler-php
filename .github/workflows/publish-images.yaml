@@ -33,6 +33,7 @@ jobs:
             TRUSTED_PROXIES: 127.0.0.1
             DEFAULT_URI: http://localhost
             MESSENGER_TRANSPORT_DSN: in-memory://
+            HOSTNAME: phpunit-builder
 
         steps:
             - name: Check out source
