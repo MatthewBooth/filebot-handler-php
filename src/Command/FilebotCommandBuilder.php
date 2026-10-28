@@ -12,18 +12,13 @@ final readonly class FilebotCommandBuilder
 {
     private const string MEDIA_FILE_PATTERN = '/\.(?:3gp|avi|flv|m2ts|m4v|mkv|mov|mp4|mpeg|mpg|mts|ogv|ts|webm|wmv)$/i';
 
-    private const string FORMAT = <<<'GROOVY'
-        {plex.derive{
-            def tags = [
-                any{vf}{null},
-                any{vc}{null},
-                any{hdr}{SDR},
-                any{ac}{null}
-            ].findAll{ it }
+    private const string ARCHIVE_FILE_PATTERN = '/\.(?:rar|zip|r\d{2,3}|z\d{2,3})$/i';
 
-            tags ? " [${tags.join(' ')}]" : ''
-        }.tail}
-        GROOVY;
+    private const string FORMAT = <<<'GROOVY'
+        {plex.derive{def t=[any{vf}{null},any{vc}{null},any{hdr}{SDR},any{ac}{null}].findAll{it};t?" [${t.join(' ')}]":''}.tail}
+    GROOVY;
+
+    private const string MOVIE_FORMAT = self::FORMAT . '{any{edition}{null} ? " {edition-$edition}" : ""}';
 
     public function __construct(
         private FilebotConfig $config,
@@ -38,23 +33,26 @@ final readonly class FilebotCommandBuilder
         }
 
         if (is_dir($path)) {
-            $mediaFileCount = (clone $this->finder)
+            $inputFileCount = (clone $this->finder)
                 ->files()
                 ->in($path)
-                ->name(self::MEDIA_FILE_PATTERN)
+                ->name([
+                    self::MEDIA_FILE_PATTERN,
+                    self::ARCHIVE_FILE_PATTERN,
+                ])
                 ->count();
 
-            if ($mediaFileCount === 1) {
+            if ($inputFileCount === 1) {
                 return 'single';
             }
 
-            if ($mediaFileCount > 1) {
+            if ($inputFileCount > 1) {
                 return 'multi';
             }
         }
 
         throw new FilebotJobValidationException(
-            'Path does not contain any media files: ' . $path,
+            'Path does not contain any media or archive files: ' . $path,
             Response::HTTP_BAD_REQUEST,
         );
     }
@@ -94,8 +92,7 @@ final readonly class FilebotCommandBuilder
             $command[] = 'id in [' . $job->mediaId . ']';
         }
 
-        $format = trim(self::FORMAT);
-        $formatDef = static fn (string $root): string => $root . $format;
+        $formatDef = static fn (string $root, string $format): string => $root . trim($format);
 
         $utKind = $this->buildUtKind($path);
 
@@ -113,9 +110,9 @@ final readonly class FilebotCommandBuilder
             'animeDB=' . $this->config->amcAnimeDb,
             'minLengthMS=' . $this->config->amcMinLength,
             'minFileSize=' . $this->config->amcMinFilesize,
-            'movieFormat=' . $formatDef($this->config->storageRoot . '/Films/'),
-            'seriesFormat=' . $formatDef($this->config->storageRoot . '/TV/'),
-            'animeFormat=' . $formatDef($this->config->storageRoot . '/TV/'),
+            'movieFormat=' . $formatDef($this->config->storageRoot . '/Films/', self::MOVIE_FORMAT),
+            'seriesFormat=' . $formatDef($this->config->storageRoot . '/TV/', self::FORMAT),
+            'animeFormat=' . $formatDef($this->config->storageRoot . '/TV/', self::FORMAT),
         ];
 
         if ($this->config->plexHost && $this->config->plexToken) {

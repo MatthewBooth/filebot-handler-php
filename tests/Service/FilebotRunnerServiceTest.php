@@ -359,7 +359,7 @@ SH;
 
         try {
             $this->expectException(FilebotJobValidationException::class);
-            $this->expectExceptionMessage('Path does not contain any media files: ' . $emptyDirectory);
+            $this->expectExceptionMessage('Path does not contain any media or archive files: ' . $emptyDirectory);
 
             $this->createService(new InMemoryLogger())->run(new FilebotJobMessage(
                 path: $emptyDirectory,
@@ -406,9 +406,9 @@ SH;
         self::assertContainsDef($command, 'animeDB=AniDB');
         self::assertContainsDef($command, 'minLengthMS=300000');
         self::assertContainsDef($command, 'minFileSize=100000000');
-        self::assertFormatDefinition($command, 'movieFormat=/media/output/Films/');
-        self::assertFormatDefinition($command, 'seriesFormat=/media/output/TV/');
-        self::assertFormatDefinition($command, 'animeFormat=/media/output/TV/');
+        self::assertFormatDefinition($command, 'movieFormat=/media/output/Films/', includesEdition: true);
+        self::assertFormatDefinition($command, 'seriesFormat=/media/output/TV/', includesEdition: false);
+        self::assertFormatDefinition($command, 'animeFormat=/media/output/TV/', includesEdition: false);
         self::assertContainsDef($command, 'plex=***');
     }
 
@@ -474,7 +474,7 @@ SH;
     /**
      * @param list<string> $command
      */
-    private static function assertFormatDefinition(array $command, string $prefix): void
+    private static function assertFormatDefinition(array $command, string $prefix, bool $includesEdition): void
     {
         $definitions = self::extractDefinitions($command);
         $formatDefinitions = array_values(array_filter(
@@ -489,8 +489,17 @@ SH;
         self::assertStringContainsString('any{vc}{null}', $formatDefinitions[0]);
         self::assertStringContainsString('any{hdr}{SDR}', $formatDefinitions[0]);
         self::assertStringContainsString('any{ac}{null}', $formatDefinitions[0]);
-        self::assertStringContainsString('tags.join', $formatDefinitions[0]);
+        self::assertStringContainsString('t.join', $formatDefinitions[0]);
         self::assertStringContainsString('}.tail}', $formatDefinitions[0]);
+
+        if ($includesEdition) {
+            self::assertStringContainsString(
+                '{any{edition}{null} ? " {edition-$edition}" : ""}',
+                $formatDefinitions[0],
+            );
+        } else {
+            self::assertStringNotContainsString('edition', $formatDefinitions[0]);
+        }
     }
 
     /**
