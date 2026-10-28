@@ -69,6 +69,9 @@ jobs:
                     --no-progress \
                     --no-scripts
 
+            - name: Install ImportMap assets
+              run: php bin/console importmap:install
+
             - name: Run PHPStan
               run: vendor/bin/phpstan analyse --configuration=phpstan.dist.neon --no-progress
 
