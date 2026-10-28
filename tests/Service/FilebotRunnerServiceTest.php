@@ -5,7 +5,6 @@ namespace App\Tests\Service;
 use App\Command\FilebotCommandBuilder;
 use App\Config\FilebotConfig;
 use App\Exception\FilebotJobValidationException;
-use App\Logging\FilebotJobLogWriter;
 use App\Message\FilebotJobMessage;
 use App\Service\FilebotRunnerService;
 use App\Tests\Support\InMemoryLogger;
@@ -121,34 +120,6 @@ SH;
         self::assertContainsDef($command, 'artwork=y');
         self::assertFileExists(self::$invocationLog);
         self::assertStringContainsString('--action test', file_get_contents(self::$invocationLog));
-        self::assertContains('FileBot: stdout test line', array_column($logger->records, 'message'));
-        self::assertContains('FileBot: stderr test line', array_column($logger->records, 'message'));
-    }
-
-    public function testRunWritesOutputToTorrentNamedLogAndKeepsMainLoggerOutput(): void
-    {
-        $torrentName = 'Reacher S04E04';
-        $torrentPath = $this->temporaryRoot . '/' . $torrentName;
-        mkdir($torrentPath);
-        touch($torrentPath . '/episode.mkv');
-
-        $logger = new InMemoryLogger();
-        $this->createService($logger)->run(new FilebotJobMessage(
-            path: $torrentPath,
-            label: 'tv',
-        ));
-
-        $logFile = $this->temporaryRoot . '/logs/filebot/' . $torrentName . '.log';
-        self::assertFileExists($logFile);
-        $content = file_get_contents($logFile);
-        self::assertIsString($content);
-        self::assertStringContainsString('Command: ["filebot","-script","fn:amc"', $content);
-        self::assertStringContainsString('"--action","copy"', $content);
-        self::assertStringContainsString('FileBot: stdout test line', $content);
-        self::assertStringContainsString('FileBot: stderr test line', $content);
-        self::assertStringNotContainsString('Received FileBot job:', $content);
-        self::assertStringNotContainsString('Processing path:', $content);
-        self::assertStringNotContainsString('FileBot command completed.', $content);
         self::assertContains('FileBot: stdout test line', array_column($logger->records, 'message'));
         self::assertContains('FileBot: stderr test line', array_column($logger->records, 'message'));
     }
@@ -433,11 +404,9 @@ SH;
 
     private function createService(InMemoryLogger $logger): FilebotRunnerService
     {
-        $filesystem = new Filesystem();
         return new FilebotRunnerService(
             $logger,
             new FilebotCommandBuilder($this->createConfig(), new Finder()),
-            new FilebotJobLogWriter($filesystem, $logger, $this->temporaryRoot . '/logs'),
         );
     }
 

@@ -3,7 +3,6 @@
 namespace App\Service;
 
 use App\Command\FilebotCommandBuilder;
-use App\Logging\FilebotJobLogWriter;
 use App\Message\FilebotJobMessage;
 use App\Process\FilebotProcessOutputClassifier;
 use Psr\Log\LoggerInterface;
@@ -16,23 +15,15 @@ final readonly class FilebotRunnerService implements FilebotRunnerInterface
     public function __construct(
         private LoggerInterface $logger,
         private FilebotCommandBuilder $commandBuilder,
-        private FilebotJobLogWriter $jobLogWriter,
     ) {
     }
 
     public function run(FilebotJobMessage $job): void
     {
         $path = $job->path;
-        $jobLog = $this->jobLogWriter->open($path);
 
         $this->logger->info('Processing path: ' . $path);
         $command = $this->commandBuilder->build($path, $job);
-
-        $loggedCommand = json_encode(
-            $this->redactSensitiveArguments($command),
-            JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE | JSON_INVALID_UTF8_SUBSTITUTE,
-        );
-        $jobLog->write(LogLevel::INFO, 'Command: ' . $loggedCommand);
 
         $this->logger->debug('Prepared FileBot command.', [
             'path' => $path,
@@ -45,7 +36,7 @@ final readonly class FilebotRunnerService implements FilebotRunnerInterface
 
         $outputBuffers = [Process::OUT => '', Process::ERR => ''];
         $classifier = new FilebotProcessOutputClassifier();
-        $logLine = function (string $type, string $line) use ($path, $jobLog, $classifier): void {
+        $logLine = function (string $type, string $line) use ($path, $classifier): void {
             if (trim($line) === '') {
                 return;
             }
@@ -53,7 +44,6 @@ final readonly class FilebotRunnerService implements FilebotRunnerInterface
             $classifier->addLine($type, $line);
             $level = $type === Process::ERR ? LogLevel::WARNING : LogLevel::INFO;
             $message = 'FileBot: ' . $line;
-            $jobLog->write($level, $message);
             $this->logger->log($level, $message, [
                 'path' => $path,
                 'stream' => $type === Process::ERR ? 'stderr' : 'stdout',
