@@ -473,16 +473,6 @@ SH;
 
     /**
      * @param list<string> $command
-     */
-    private static function assertNotContainsDef(array $command, string $unexpectedDefinition): void
-    {
-        $definitions = self::extractDefinitions($command);
-
-        self::assertNotContains($unexpectedDefinition, $definitions);
-    }
-
-    /**
-     * @param list<string> $command
      *
      * @return list<string>
      */

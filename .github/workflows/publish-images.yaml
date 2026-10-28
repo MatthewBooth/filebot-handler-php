@@ -69,6 +69,9 @@ jobs:
                     --no-progress \
                     --no-scripts
 
+            - name: Run PHPStan
+              run: vendor/bin/phpstan analyse --configuration=phpstan.dist.neon --no-progress
+
             - name: Run PHPUnit tests
               run: php bin/phpunit --testdox
 

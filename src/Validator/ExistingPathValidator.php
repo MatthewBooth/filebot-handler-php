@@ -4,6 +4,7 @@ namespace App\Validator;
 
 use Symfony\Component\Validator\Constraint;
 use Symfony\Component\Validator\ConstraintValidator;
+use Symfony\Component\Validator\Exception\UnexpectedTypeException;
 
 final class ExistingPathValidator extends ConstraintValidator
 {
@@ -11,6 +12,10 @@ final class ExistingPathValidator extends ConstraintValidator
         mixed $value,
         Constraint $constraint
     ): void {
+        if (!$constraint instanceof ExistingPath) {
+            throw new UnexpectedTypeException($constraint, ExistingPath::class);
+        }
+
         if ($value === null || $value === '') {
             return; // Let NotBlank handle this
         }
