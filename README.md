@@ -14,8 +14,13 @@ The API is available at `http://localhost:8080`. Check it with
 `GET /api/health`.
 
 The job dashboard is available at `http://localhost:8080/`. It shows queued
-and processing jobs from the Messenger transport; completed jobs are removed
-from the transport after acknowledgment.
+and processing jobs from the Messenger transport, including workers associated
+with pending jobs. It also shows the latest 50 completed, failed, or deleted
+jobs. History is retained in separate Redis keys for 48 hours after a job
+finishes, and the live queue and history sections refresh automatically every
+10 seconds. The Docker Compose Redis service enables append-only persistence;
+deployed Redis should also have persistence enabled to preserve history across
+restarts.
 
 Browse the interactive Swagger UI at `http://localhost:8080/api/doc`. The
 generated OpenAPI document is available at `/api/doc.json` and `/api/doc.yaml`.

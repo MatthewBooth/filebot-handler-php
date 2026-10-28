@@ -3,7 +3,6 @@
 namespace App\Service;
 
 use LogicException;
-use Redis;
 use RuntimeException;
 use Symfony\Component\DependencyInjection\Attribute\Autowire;
 
@@ -12,6 +11,7 @@ final readonly class RedisFilebotJobPendingStatusReader implements FilebotJobPen
     public function __construct(
         #[Autowire(env: 'MESSENGER_TRANSPORT_DSN')]
         private string $transportDsn,
+        private RedisConnectionFactory $connectionFactory,
     ) {
     }
 
@@ -23,7 +23,7 @@ final readonly class RedisFilebotJobPendingStatusReader implements FilebotJobPen
 
         [$stream, $group] = $this->getStreamAndGroup();
         $wantedIds = array_fill_keys($messageIds, true);
-        $redis = $this->connect();
+        $redis = $this->connectionFactory->connect();
 
         try {
             $start = $messageIds[0];
@@ -87,38 +87,4 @@ final readonly class RedisFilebotJobPendingStatusReader implements FilebotJobPen
         ];
     }
 
-    private function connect(): Redis
-    {
-        $parts = parse_url($this->transportDsn);
-        if (false === $parts || !isset($parts['host'])) {
-            throw new LogicException('The Redis Messenger transport DSN must include a Redis host.');
-        }
-
-        $host = 'rediss' === ($parts['scheme'] ?? '') ? 'tls://'.$parts['host'] : $parts['host'];
-        $redis = new Redis();
-        if (!$redis->connect($host, $parts['port'] ?? 6379, 2.5)) {
-            throw new RuntimeException('Unable to connect to Redis to inspect FileBot job status.');
-        }
-
-        if (isset($parts['pass'])) {
-            $password = rawurldecode($parts['pass']);
-            $username = isset($parts['user']) ? rawurldecode($parts['user']) : '';
-            $auth = '' !== $username && 'default' !== $username
-                ? [$username, $password]
-                : $password;
-
-            if (!$redis->auth($auth)) {
-                throw new RuntimeException('Unable to authenticate with Redis to inspect FileBot job status.');
-            }
-        }
-
-        $query = [];
-        parse_str($parts['query'] ?? '', $query);
-        $database = filter_var($query['dbindex'] ?? 0, FILTER_VALIDATE_INT);
-        if (false === $database || !$redis->select($database)) {
-            throw new RuntimeException('Unable to select the Redis database for FileBot job status.');
-        }
-
-        return $redis;
-    }
 }

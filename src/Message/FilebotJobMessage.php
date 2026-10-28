@@ -4,6 +4,8 @@ namespace App\Message;
 
 final readonly class FilebotJobMessage
 {
+    public string $jobId;
+
     public function __construct(
         public string $path,
         public string $label,
@@ -13,7 +15,9 @@ final readonly class FilebotJobMessage
         public string $mediaId = '',
         public bool $strict = false,
         public bool $artwork = true,
+        ?string $jobId = null,
     ) {
+        $this->jobId = $jobId ?? bin2hex(random_bytes(16));
     }
 
     /**

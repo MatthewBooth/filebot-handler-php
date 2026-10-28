@@ -3,6 +3,7 @@
 namespace App\Controller;
 
 use App\Dto\CreateFilebotJobMessageDto;
+use App\Service\FilebotJobHistoryStoreInterface;
 use App\Service\FilebotJobQueue;
 use Nelmio\ApiDocBundle\Attribute\Model;
 use OpenApi\Attributes as OA;
@@ -13,6 +14,7 @@ use Symfony\Component\HttpFoundation\Request;
 use Symfony\Component\HttpFoundation\Response;
 use Symfony\Component\HttpKernel\Attribute\MapRequestPayload;
 use Symfony\Component\Messenger\MessageBusInterface;
+use Symfony\Component\Messenger\Stamp\TransportMessageIdStamp;
 use Symfony\Component\Routing\Attribute\Route;
 use Throwable;
 
@@ -103,9 +105,21 @@ final class FilebotJobController extends AbstractController
             new OA\Response(response: 503, description: 'The job could not be removed from the queue.'),
         ],
     )]
-    public function delete(string $id, FilebotJobQueue $queue, LoggerInterface $logger): JsonResponse
-    {
+    public function delete(
+        string $id,
+        FilebotJobQueue $queue,
+        LoggerInterface $logger,
+        ?FilebotJobHistoryStoreInterface $history = null,
+    ): JsonResponse {
         try {
+            $message = $queue->findMessage($id);
+            if (null === $message) {
+                return $this->json([
+                    'status' => 'error',
+                    'message' => 'Queued FileBot job not found.',
+                ], Response::HTTP_NOT_FOUND);
+            }
+
             $deleted = $queue->delete($id);
         } catch (Throwable $exception) {
             $logger->error('Failed to delete queued FileBot job.', ['job_id' => $id, 'exception' => $exception]);
@@ -117,10 +131,18 @@ final class FilebotJobController extends AbstractController
         }
 
         if (!$deleted) {
-            return $this->json([
-                'status' => 'error',
-                'message' => 'Queued FileBot job not found.',
-            ], Response::HTTP_NOT_FOUND);
+            return $this->json(['status' => 'error', 'message' => 'Queued FileBot job not found.'], Response::HTTP_NOT_FOUND);
+        }
+
+        if (null !== $history) {
+            try {
+                $history->markDeleted($message->jobId);
+            } catch (Throwable $exception) {
+                $logger->error('Failed to record deleted FileBot job history.', [
+                    'exception' => $exception,
+                    'job_id' => $message->jobId,
+                ]);
+            }
         }
 
         return $this->json(['status' => 'deleted', 'id' => $id]);
@@ -195,18 +217,53 @@ final class FilebotJobController extends AbstractController
         #[MapRequestPayload] CreateFilebotJobMessageDto $createFilebotJobRequest,
         MessageBusInterface                             $messageBus,
         LoggerInterface                                 $logger,
+        ?FilebotJobHistoryStoreInterface                $history = null,
     ): JsonResponse {
         $job = $createFilebotJobRequest->toFilebotJobMessage();
 
         try {
-            $messageBus->dispatch($job);
+            $history?->recordQueued($job);
         } catch (Throwable $exception) {
+            $logger->error('Failed to record FileBot job history before queueing.', ['exception' => $exception]);
+
+            return $this->json([
+                'status' => 'error',
+                'message' => 'Unable to queue FileBot job.',
+            ], Response::HTTP_INTERNAL_SERVER_ERROR);
+        }
+
+        try {
+            $envelope = $messageBus->dispatch($job);
+        } catch (Throwable $exception) {
+            if (null !== $history) {
+                try {
+                    $history->markFailed($job, $exception);
+                } catch (Throwable $historyException) {
+                    $logger->error('Failed to record the queueing error in FileBot job history.', [
+                        'exception' => $historyException,
+                        'job_id' => $job->jobId,
+                    ]);
+                }
+            }
+
             $logger->error('Failed to queue FileBot job.', ['exception' => $exception]);
 
             return $this->json([
                 'status' => 'error',
                 'message' => 'Unable to queue FileBot job.',
             ], Response::HTTP_INTERNAL_SERVER_ERROR);
+        }
+
+        $transportId = $envelope->last(TransportMessageIdStamp::class)?->getId();
+        if (null !== $history && \is_string($transportId)) {
+            try {
+                $history->attachTransportId($job->jobId, $transportId);
+            } catch (Throwable $exception) {
+                $logger->error('Failed to attach the transport ID to FileBot job history.', [
+                    'exception' => $exception,
+                    'job_id' => $job->jobId,
+                ]);
+            }
         }
 
         return $this->json(['status' => 'queued'], Response::HTTP_ACCEPTED);

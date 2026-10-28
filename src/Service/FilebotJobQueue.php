@@ -68,6 +68,13 @@ final readonly class FilebotJobQueue
         return $this->formatJob($envelope, $pendingStatuses[$id] ?? null);
     }
 
+    public function findMessage(string $id): ?FilebotJobMessage
+    {
+        $message = $this->getListableReceiver()->find($id)?->getMessage();
+
+        return $message instanceof FilebotJobMessage ? $message : null;
+    }
+
     public function delete(string $id): bool
     {
         $receiver = $this->getListableReceiver();

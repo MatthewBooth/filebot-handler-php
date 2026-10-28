@@ -32,7 +32,7 @@ final class CreateFilebotJobMessageDtoTest extends TestCase
         self::assertFalse($request->strict);
         self::assertTrue($request->artwork);
 
-        self::assertEquals(new FilebotJobMessage(
+        $this->assertMessageMatches(new FilebotJobMessage(
             path: '/media/example.mkv',
             label: 'movie',
         ), $request->toFilebotJobMessage());
@@ -51,7 +51,7 @@ final class CreateFilebotJobMessageDtoTest extends TestCase
             artwork: false,
         );
 
-        self::assertEquals(new FilebotJobMessage(
+        $this->assertMessageMatches(new FilebotJobMessage(
             path: '/media/one.mkv',
             label: 'anime',
             order: 'Absolute',
@@ -123,5 +123,11 @@ final class CreateFilebotJobMessageDtoTest extends TestCase
 
         self::assertCount(1, $violations);
         self::assertSame('mediaId', $violations[0]->getPropertyPath());
+    }
+
+    private function assertMessageMatches(FilebotJobMessage $expected, FilebotJobMessage $actual): void
+    {
+        self::assertSame($expected->toLogContext(), $actual->toLogContext());
+        self::assertMatchesRegularExpression('/^[a-f0-9]{32}$/', $actual->jobId);
     }
 }
