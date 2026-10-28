@@ -4,7 +4,7 @@
         "Read more about it at https://getcomposer.org/doc/01-basic-usage.md#installing-dependencies",
         "This file is @generated automatically"
     ],
-    "content-hash": "e9567de994b198d30d71ae7e65ea0832",
+    "content-hash": "9c2b750f471ecd3489e24c90637e75ed",
     "packages": [
         {
             "name": "doctrine/deprecations",
@@ -3331,7 +3331,7 @@
             ],
             "authors": [
                 {
-                    "name": "Kévin Dunglas",
+                    "name": "K\u00e9vin Dunglas",
                     "email": "dunglas@gmail.com"
                 },
                 {
@@ -6834,7 +6834,7 @@
                     "email": "fabien@symfony.com"
                 },
                 {
-                    "name": "Jean-François Simon",
+                    "name": "Jean-Fran\u00e7ois Simon",
                     "email": "jeanfrancois.simon@sensiolabs.com"
                 },
                 {
@@ -7096,7 +7096,8 @@
     "platform": {
         "php": ">=8.4",
         "ext-ctype": "*",
-        "ext-iconv": "*"
+        "ext-iconv": "*",
+        "ext-redis": "*"
     },
     "platform-dev": [],
     "plugin-api-version": "2.2.0"

@@ -77,7 +77,7 @@ final readonly class FilebotJobQueue
             return false;
         }
 
-        // Redis Messenger removes an unconsumed entry when it is acknowledged
+        // Redis Messenger removes an unconsumed entry when it is acknowledged,
         // and delete_after_ack is enabled on the transport.
         $receiver->ack($envelope);
 

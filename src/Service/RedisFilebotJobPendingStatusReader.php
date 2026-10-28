@@ -2,6 +2,9 @@
 
 namespace App\Service;
 
+use LogicException;
+use Redis;
+use RuntimeException;
 use Symfony\Component\DependencyInjection\Attribute\Autowire;
 
 final readonly class RedisFilebotJobPendingStatusReader implements FilebotJobPendingStatusReaderInterface
@@ -39,7 +42,7 @@ final readonly class RedisFilebotJobPendingStatusReader implements FilebotJobPen
             );
 
             if (!\is_array($pendingMessages)) {
-                throw new \RuntimeException('Redis did not return pending FileBot job details.');
+                throw new RuntimeException('Redis did not return pending FileBot job details.');
             }
 
             $statuses = [];
@@ -71,7 +74,7 @@ final readonly class RedisFilebotJobPendingStatusReader implements FilebotJobPen
     {
         $parts = parse_url($this->transportDsn);
         if (false === $parts || !\in_array($parts['scheme'] ?? '', ['redis', 'rediss'], true)) {
-            throw new \LogicException('Job status inspection requires a Redis Messenger transport.');
+            throw new LogicException('Job status inspection requires a Redis Messenger transport.');
         }
 
         $query = [];
@@ -84,17 +87,17 @@ final readonly class RedisFilebotJobPendingStatusReader implements FilebotJobPen
         ];
     }
 
-    private function connect(): \Redis
+    private function connect(): Redis
     {
         $parts = parse_url($this->transportDsn);
         if (false === $parts || !isset($parts['host'])) {
-            throw new \LogicException('The Redis Messenger transport DSN must include a Redis host.');
+            throw new LogicException('The Redis Messenger transport DSN must include a Redis host.');
         }
 
         $host = 'rediss' === ($parts['scheme'] ?? '') ? 'tls://'.$parts['host'] : $parts['host'];
-        $redis = new \Redis();
+        $redis = new Redis();
         if (!$redis->connect($host, $parts['port'] ?? 6379, 2.5)) {
-            throw new \RuntimeException('Unable to connect to Redis to inspect FileBot job status.');
+            throw new RuntimeException('Unable to connect to Redis to inspect FileBot job status.');
         }
 
         if (isset($parts['pass'])) {
@@ -105,7 +108,7 @@ final readonly class RedisFilebotJobPendingStatusReader implements FilebotJobPen
                 : $password;
 
             if (!$redis->auth($auth)) {
-                throw new \RuntimeException('Unable to authenticate with Redis to inspect FileBot job status.');
+                throw new RuntimeException('Unable to authenticate with Redis to inspect FileBot job status.');
             }
         }
 
@@ -113,7 +116,7 @@ final readonly class RedisFilebotJobPendingStatusReader implements FilebotJobPen
         parse_str($parts['query'] ?? '', $query);
         $database = filter_var($query['dbindex'] ?? 0, FILTER_VALIDATE_INT);
         if (false === $database || !$redis->select($database)) {
-            throw new \RuntimeException('Unable to select the Redis database for FileBot job status.');
+            throw new RuntimeException('Unable to select the Redis database for FileBot job status.');
         }
 
         return $redis;
