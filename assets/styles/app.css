@@ -1,0 +1,67 @@
+:root {
+    --app-ink: #172033;
+    --app-muted: #687386;
+    --app-canvas: #f4f6fa;
+}
+
+body {
+    min-height: 100vh;
+    background: var(--app-canvas);
+    color: var(--app-ink);
+}
+
+.app-navbar {
+    background: var(--app-ink);
+}
+
+.brand-mark {
+    display: inline-grid;
+    width: 2rem;
+    height: 2rem;
+    place-items: center;
+    border-radius: .65rem;
+    background: #7968f2;
+    color: white;
+    font-size: .9rem;
+    font-weight: 800;
+}
+
+.dashboard-content {
+    max-width: 1440px;
+}
+
+.eyebrow {
+    color: var(--app-muted);
+    font-size: .72rem;
+    font-weight: 700;
+    letter-spacing: .09em;
+    text-transform: uppercase;
+}
+
+.metric-card,
+.content-card {
+    border: 1px solid #e8ebf1;
+    border-radius: 1rem;
+    box-shadow: 0 .35rem 1.25rem rgb(23 32 51 / 4%);
+}
+
+.metric-value {
+    color: var(--app-ink);
+    font-size: 2rem;
+    font-weight: 750;
+    letter-spacing: -.04em;
+}
+
+.table-jobs th {
+    color: var(--app-muted);
+    font-size: .72rem;
+    font-weight: 700;
+    letter-spacing: .06em;
+    text-transform: uppercase;
+}
+
+.table-jobs td,
+.table-jobs th {
+    padding: 1rem 1.15rem;
+    vertical-align: middle;
+}

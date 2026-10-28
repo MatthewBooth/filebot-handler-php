@@ -137,6 +137,18 @@ RUN composer dump-autoload \
         TRUSTED_PROXIES="" \
         MESSENGER_TRANSPORT_DSN=redis://redis:6379/messages \
         php bin/console assets:install public \
+    && APP_SECRET=build-only-secret \
+        APP_DEBUG=1 \
+        DEFAULT_URI=http://localhost \
+        TRUSTED_PROXIES="" \
+        MESSENGER_TRANSPORT_DSN=redis://redis:6379/messages \
+        php bin/console importmap:install \
+    && APP_SECRET=build-only-secret \
+        APP_DEBUG=1 \
+        DEFAULT_URI=http://localhost \
+        TRUSTED_PROXIES="" \
+        MESSENGER_TRANSPORT_DSN=redis://redis:6379/messages \
+        php bin/console asset-map:compile \
     && mkdir -p var/cache var/log \
     && chmod -R 0777 var
 

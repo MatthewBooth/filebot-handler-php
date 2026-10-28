@@ -4,6 +4,8 @@
 .phpunit.cache
 .env*
 vendor
+assets/vendor
+public/assets
 var
 tests
 public/bundles
