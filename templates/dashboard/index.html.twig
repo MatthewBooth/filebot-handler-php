@@ -34,7 +34,7 @@
             </div>
         {% endif %}
 
-        <section aria-label="Queue summary" class="row row-cols-1 row-cols-sm-3 g-3 mb-4">
+        <section aria-label="Queue summary" class="row row-cols-1 row-cols-sm-2 row-cols-xl-4 g-3 mb-4">
             <div class="col">
                 <article class="card metric-card h-100">
                     <div class="card-body p-4">
@@ -56,12 +56,51 @@
             <div class="col">
                 <article class="card metric-card h-100">
                     <div class="card-body p-4">
+                        <p class="eyebrow mb-3">Workers with jobs</p>
+                        <div class="metric-value" id="worker-count">{{ workerCount ?? '—' }}</div>
+                        <p class="small text-secondary mb-0 mt-2">Seen on visible processing jobs</p>
+                    </div>
+                </article>
+            </div>
+            <div class="col">
+                <article class="card metric-card h-100">
+                    <div class="card-body p-4">
                         <p class="eyebrow mb-3">Visible jobs</p>
                         <div class="metric-value" id="total-count">{{ queueAvailable ? jobs|length : '—' }}</div>
                         <p class="small text-secondary mb-0 mt-2">Up to 500 jobs from the queue</p>
                     </div>
                 </article>
             </div>
+        </section>
+
+        <section class="card content-card mb-4" aria-labelledby="workers-title">
+            <div class="card-header bg-white border-0 px-4 pt-4 pb-3">
+                <h2 id="workers-title" class="h5 fw-bold mb-1">Workers with pending jobs</h2>
+                <p class="small text-secondary mb-0">Worker names and jobs currently recorded as processing.</p>
+            </div>
+            {% if not queueAvailable %}
+                <div class="px-4 pb-4 small text-secondary">Worker information is unavailable while the queue cannot be read.</div>
+            {% elseif workers is empty %}
+                <div class="px-4 pb-4 small text-secondary">No workers currently have visible pending jobs.</div>
+            {% else %}
+                <div class="list-group list-group-flush">
+                    {% for workerName, workerJobs in workers %}
+                        <div class="list-group-item px-4 py-3">
+                            <div class="d-flex flex-column flex-md-row gap-2">
+                                <div class="fw-semibold text-break me-md-3">{{ workerName }}</div>
+                                <div class="flex-grow-1">
+                                    {% for workerJob in workerJobs %}
+                                        <div class="small{% if not loop.first %} mt-1{% endif %}">
+                                            <span class="text-secondary">{{ workerJob.path }}</span>
+                                            <code class="ms-1">{{ workerJob.id }}</code>
+                                        </div>
+                                    {% endfor %}
+                                </div>
+                            </div>
+                        </div>
+                    {% endfor %}
+                </div>
+            {% endif %}
         </section>
 
         <section class="card content-card overflow-hidden" aria-labelledby="recent-jobs-title" data-controller="job-list">
@@ -115,9 +154,6 @@
                                     <td>
                                         {% if job.status == 'processing' %}
                                             <span class="badge rounded-pill text-bg-info-subtle text-info-emphasis">Processing</span>
-                                            {% if job.worker is defined %}
-                                                <div class="small text-secondary mt-1">{{ job.worker }}</div>
-                                            {% endif %}
                                             {% if job.deliveryCount is defined %}
                                                 <div class="small text-secondary">Delivery {{ job.deliveryCount }}</div>
                                             {% endif %}
@@ -127,20 +163,20 @@
                                     </td>
                                     <td><span class="badge text-bg-light border text-dark">{{ job.message.action|capitalize }}</span></td>
                                     <td class="text-end">
-                                            <a class="btn btn-sm btn-outline-secondary" href="{{ path('app_api_filebotjob_show', {id: job.id}) }}">
-                                            View JSON
-                                        </a>
+                                        <div class="d-inline-flex align-items-center gap-2">
+                                            <a class="btn btn-sm btn-outline-secondary px-3" href="{{ path('app_api_filebotjob_show', {id: job.id}) }}">JSON</a>
                                             {% if job.status == 'queued' %}
                                                 <button
-                                                    class="btn btn-sm btn-outline-danger ms-1"
+                                                    class="btn btn-sm btn-outline-danger px-3"
                                                     type="button"
                                                     data-action="job-list#delete"
                                                     data-job-id="{{ job.id }}"
                                                     data-url="{{ path('app_api_filebotjob_delete', {id: job.id}) }}"
                                                 >Delete</button>
                                             {% else %}
-                                                <span class="small text-secondary ms-1">In progress</span>
+                                                <span class="small text-secondary">In progress</span>
                                             {% endif %}
+                                        </div>
                                     </td>
                                 </tr>
                             {% endfor %}

@@ -30,7 +30,9 @@ final class DashboardControllerIntegrationTest extends WebTestCase
         self::assertSelectorExists('tr[data-job-id="100-0"]');
         self::assertSelectorTextContains('tr[data-job-id="100-0"]', '/media/Arrival/Arrival.mkv');
         self::assertSelectorTextContains('tr[data-job-id="100-0"]', 'Movie');
-        self::assertSelectorTextContains('tr[data-job-id="101-0"]', 'worker-1');
+        self::assertSelectorTextContains('#worker-count', '1');
+        self::assertSelectorTextContains('section[aria-labelledby="workers-title"]', 'worker-1');
+        self::assertSelectorTextContains('section[aria-labelledby="workers-title"]', '/media/Planet Earth III');
         self::assertSelectorTextContains('tr[data-job-id="101-0"]', 'Move');
         self::assertSelectorExists('a[href="/api/jobs/100-0"]');
         self::assertSelectorExists('form[action="/api/jobs"][data-controller="job-form"]');

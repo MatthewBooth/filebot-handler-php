@@ -26,6 +26,8 @@ final class DashboardController extends AbstractController
                 'queueAvailable' => false,
                 'queuedCount' => null,
                 'processingCount' => null,
+                'workerCount' => null,
+                'workers' => [],
             ], new Response(status: Response::HTTP_SERVICE_UNAVAILABLE));
         }
 
@@ -33,12 +35,26 @@ final class DashboardController extends AbstractController
             $jobs,
             static fn (array $job): bool => $job['status'] === 'processing',
         ));
+        $workers = [];
+
+        foreach ($jobs as $job) {
+            if (!isset($job['worker'])) {
+                continue;
+            }
+
+            $workers[$job['worker']][] = [
+                'id' => $job['id'],
+                'path' => $job['message']['path'],
+            ];
+        }
 
         return $this->render('dashboard/index.html.twig', [
             'jobs' => $jobs,
             'queueAvailable' => true,
             'queuedCount' => count($jobs) - $processingCount,
             'processingCount' => $processingCount,
+            'workerCount' => count($workers),
+            'workers' => $workers,
         ]);
     }
 }
