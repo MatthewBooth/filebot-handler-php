@@ -23,6 +23,9 @@
                 <h1 class="display-6 fw-bold mb-2">Job queue</h1>
                 <p class="text-secondary mb-0">Queued and processing FileBot jobs.</p>
             </div>
+            <button class="btn btn-primary" type="button" data-bs-toggle="modal" data-bs-target="#createJobModal">
+                Create job
+            </button>
         </header>
 
         {% if not queueAvailable %}
@@ -61,7 +64,8 @@
             </div>
         </section>
 
-        <section class="card content-card overflow-hidden" aria-labelledby="recent-jobs-title">
+        <section class="card content-card overflow-hidden" aria-labelledby="recent-jobs-title" data-controller="job-list">
+            <div class="alert alert-danger rounded-0 border-0 mb-0 d-none" role="alert" data-job-list-target="feedback"></div>
             <div class="card-header bg-white border-0 px-4 pt-4 pb-3 d-flex flex-column flex-sm-row justify-content-between gap-2">
                 <div>
                     <h2 id="recent-jobs-title" class="h5 fw-bold mb-1">Jobs</h2>
@@ -123,9 +127,20 @@
                                     </td>
                                     <td><span class="badge text-bg-light border text-dark">{{ job.message.action|capitalize }}</span></td>
                                     <td class="text-end">
-                                        <a class="btn btn-sm btn-outline-secondary" href="{{ path('app_api_filebotjob_show', {id: job.id}) }}">
+                                            <a class="btn btn-sm btn-outline-secondary" href="{{ path('app_api_filebotjob_show', {id: job.id}) }}">
                                             View JSON
                                         </a>
+                                            {% if job.status == 'queued' %}
+                                                <button
+                                                    class="btn btn-sm btn-outline-danger ms-1"
+                                                    type="button"
+                                                    data-action="job-list#delete"
+                                                    data-job-id="{{ job.id }}"
+                                                    data-url="{{ path('app_api_filebotjob_delete', {id: job.id}) }}"
+                                                >Delete</button>
+                                            {% else %}
+                                                <span class="small text-secondary ms-1">In progress</span>
+                                            {% endif %}
                                     </td>
                                 </tr>
                             {% endfor %}
@@ -139,5 +154,86 @@
                 </span>
             </div>
         </section>
+
+        <div class="modal fade" id="createJobModal" tabindex="-1" aria-labelledby="createJobModalTitle" aria-hidden="true">
+            <div class="modal-dialog modal-lg modal-dialog-scrollable">
+                <div class="modal-content border-0 shadow">
+                    <div class="modal-header">
+                        <div>
+                            <p class="eyebrow mb-1">New queue item</p>
+                            <h2 class="modal-title h5 fw-bold" id="createJobModalTitle">Create a FileBot job</h2>
+                        </div>
+                        <button class="btn-close" type="button" data-bs-dismiss="modal" aria-label="Close"></button>
+                    </div>
+                    <form action="{{ path('app_api_filebotjob_create') }}" method="post" data-controller="job-form" data-action="submit->job-form#submit">
+                        <div class="modal-body">
+                            <div class="alert alert-danger d-none" role="alert" data-job-form-target="feedback"></div>
+                            <div class="mb-3">
+                                <label class="form-label fw-semibold" for="create-job-path">Media path</label>
+                                <input class="form-control" id="create-job-path" name="path" type="text" placeholder="/torrents/Example.Movie.2024" required>
+                                <div class="form-text">Enter an absolute path visible to the API and worker containers.</div>
+                            </div>
+
+                            <div class="row g-3">
+                                <div class="col-md-6">
+                                    <label class="form-label fw-semibold" for="create-job-label">Media type</label>
+                                    <select class="form-select" id="create-job-label" name="label" required>
+                                        <option value="movie">Movie</option>
+                                        <option value="tv">TV</option>
+                                        <option value="anime">Anime</option>
+                                        <option value="music">Music</option>
+                                    </select>
+                                </div>
+                                <div class="col-md-6">
+                                    <label class="form-label fw-semibold" for="create-job-action">File action</label>
+                                    <select class="form-select" id="create-job-action" name="action" required>
+                                        <option value="test">Test only</option>
+                                        <option value="copy" selected>Copy</option>
+                                        <option value="move">Move</option>
+                                    </select>
+                                </div>
+                                <div class="col-md-6">
+                                    <label class="form-label fw-semibold" for="create-job-conflict">Conflict policy</label>
+                                    <select class="form-select" id="create-job-conflict" name="conflict" required>
+                                        <option value="skip" selected>Skip</option>
+                                        <option value="replace">Replace</option>
+                                        <option value="auto">Automatic</option>
+                                        <option value="index">Index</option>
+                                        <option value="fail">Fail</option>
+                                    </select>
+                                </div>
+                                <div class="col-md-6">
+                                    <label class="form-label fw-semibold" for="create-job-order">Episode order</label>
+                                    <select class="form-select" id="create-job-order" name="order" required>
+                                        <option value="Airdate" selected>Airdate</option>
+                                        <option value="DVD">DVD</option>
+                                        <option value="Absolute">Absolute</option>
+                                    </select>
+                                </div>
+                                <div class="col-12">
+                                    <label class="form-label fw-semibold" for="create-job-media-id">Media database ID <span class="text-secondary fw-normal">(optional)</span></label>
+                                    <input class="form-control" id="create-job-media-id" name="mediaId" type="number" min="1" step="1" inputmode="numeric">
+                                </div>
+                            </div>
+
+                            <div class="d-flex flex-wrap gap-4 mt-4">
+                                <div class="form-check">
+                                    <input class="form-check-input" id="create-job-artwork" name="artwork" type="checkbox" checked>
+                                    <label class="form-check-label" for="create-job-artwork">Fetch artwork</label>
+                                </div>
+                                <div class="form-check">
+                                    <input class="form-check-input" id="create-job-strict" name="strict" type="checkbox">
+                                    <label class="form-check-label" for="create-job-strict">Strict matching</label>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="modal-footer">
+                            <button class="btn btn-light border" type="button" data-bs-dismiss="modal">Cancel</button>
+                            <button class="btn btn-primary" type="submit" data-job-form-target="submit">Queue job</button>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
     </main>
 {% endblock %}
