@@ -28,6 +28,10 @@ final class DashboardControllerIntegrationTest extends WebTestCase
         $client->request('GET', '/');
 
         self::assertResponseIsSuccessful();
+        self::assertSelectorExists('link[rel="icon"][href="/favicon.ico"]');
+        self::assertSelectorExists('link[rel="icon"][sizes="16x16"]');
+        self::assertSelectorExists('link[rel="icon"][sizes="32x32"]');
+        self::assertSelectorExists('link[rel="apple-touch-icon"][sizes="180x180"]');
         self::assertSelectorTextContains('#queued-count', '1');
         self::assertSelectorTextContains('#processing-count', '1');
         self::assertSelectorTextContains('#total-count', '2');
