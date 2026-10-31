@@ -86,9 +86,6 @@
                             <td>
                                 {% if job.status == 'processing' %}
                                     <span class="badge rounded-pill text-bg-info-subtle text-info-emphasis">Processing</span>
-                                    {% if job.deliveryCount is defined %}
-                                        <div class="small text-secondary">Delivery {{ job.deliveryCount }}</div>
-                                    {% endif %}
                                 {% else %}
                                     <span class="badge rounded-pill text-bg-secondary-subtle text-secondary-emphasis">Queued</span>
                                 {% endif %}
