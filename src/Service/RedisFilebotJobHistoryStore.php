@@ -60,6 +60,11 @@ final readonly class RedisFilebotJobHistoryStore implements FilebotJobHistorySto
         $this->markTerminal($job->jobId, ['status' => 'completed']);
     }
 
+    public function markSkipped(FilebotJobMessage $job, string $reason): void
+    {
+        $this->markTerminal($job->jobId, ['status' => 'skipped', 'reason' => substr($reason, 0, 1000)]);
+    }
+
     public function markFailed(FilebotJobMessage $job, Throwable $exception): void
     {
         $this->markTerminal($job->jobId, [
@@ -112,6 +117,7 @@ final readonly class RedisFilebotJobHistoryStore implements FilebotJobHistorySto
                     'finishedAt' => $record['finishedAt'] ?? '',
                     'worker' => $record['worker'] ?? null,
                     'error' => $record['error'] ?? null,
+                    'reason' => $record['reason'] ?? null,
                 ];
             }
 

@@ -44,6 +44,11 @@ final class InMemoryFilebotJobHistoryStore implements FilebotJobHistoryStoreInte
         $this->markTerminal($job->jobId, ['status' => 'completed']);
     }
 
+    public function markSkipped(FilebotJobMessage $job, string $reason): void
+    {
+        $this->markTerminal($job->jobId, ['status' => 'skipped', 'reason' => $reason]);
+    }
+
     public function markFailed(FilebotJobMessage $job, Throwable $exception): void
     {
         $this->markTerminal($job->jobId, [
@@ -61,7 +66,7 @@ final class InMemoryFilebotJobHistoryStore implements FilebotJobHistoryStoreInte
     {
         $jobs = array_filter(
             $this->jobs,
-            static fn (array $job): bool => \in_array($job['status'] ?? null, ['completed', 'failed', 'deleted'], true),
+            static fn (array $job): bool => \in_array($job['status'] ?? null, ['completed', 'skipped', 'failed', 'deleted'], true),
         );
         usort($jobs, static fn (array $first, array $second): int => strcmp($second['finishedAt'], $first['finishedAt']));
 
@@ -72,7 +77,7 @@ final class InMemoryFilebotJobHistoryStore implements FilebotJobHistoryStoreInte
     {
         return count(array_filter(
             $this->jobs,
-            static fn (array $job): bool => \in_array($job['status'] ?? null, ['completed', 'failed', 'deleted'], true),
+            static fn (array $job): bool => \in_array($job['status'] ?? null, ['completed', 'skipped', 'failed', 'deleted'], true),
         ));
     }
 

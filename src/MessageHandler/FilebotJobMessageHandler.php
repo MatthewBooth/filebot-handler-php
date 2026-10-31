@@ -26,17 +26,23 @@ final readonly class FilebotJobMessageHandler
         $this->updateHistory($job, 'processing');
 
         try {
-            $this->filebotRunner->run($job);
+            $result = $this->filebotRunner->run($job);
         } catch (Throwable $exception) {
             $this->updateHistory($job, 'failed', $exception);
             throw $exception;
+        }
+
+        if ($result->status === 'skipped') {
+            $this->updateHistory($job, 'skipped', reason: $result->reason);
+            $this->logger->info('FileBot job skipped.', [...$job->toLogContext(), 'reason' => $result->reason]);
+            return;
         }
 
         $this->updateHistory($job, 'completed');
         $this->logger->info('FileBot job completed.', $job->toLogContext());
     }
 
-    private function updateHistory(FilebotJobMessage $job, string $status, ?Throwable $exception = null): void
+    private function updateHistory(FilebotJobMessage $job, string $status, ?Throwable $exception = null, ?string $reason = null): void
     {
         if (null === $this->history) {
             return;
@@ -46,6 +52,7 @@ final readonly class FilebotJobMessageHandler
             match ($status) {
                 'processing' => $this->history->markProcessing($job, gethostname() ?: 'unknown'),
                 'completed' => $this->history->markCompleted($job),
+                'skipped' => $this->history->markSkipped($job, $reason ?? 'Job was skipped.'),
                 'failed' => $this->history->markFailed($job, $exception ?? new LogicException('A failed job requires an exception.')),
             };
         } catch (Throwable $historyException) {

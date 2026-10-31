@@ -6,6 +6,7 @@ use App\Command\FilebotCommandBuilder;
 use App\Config\FilebotConfig;
 use App\Exception\FilebotJobValidationException;
 use App\Message\FilebotJobMessage;
+use App\Model\FilebotRunResult;
 use App\Service\FilebotRunnerService;
 use App\Tests\Support\InMemoryLogger;
 use PHPUnit\Framework\TestCase;
@@ -148,7 +149,7 @@ SH;
         $logger = new InMemoryLogger();
         $path = $this->createFile('example.mkv');
 
-        $this->createService($logger)->run(new FilebotJobMessage(
+        $result = $this->createService($logger)->run(new FilebotJobMessage(
             path: $path,
             label: 'movie',
             mediaId: '123456',
@@ -231,7 +232,7 @@ SH;
         $logger = new InMemoryLogger();
         $path = $this->createFile('example.mkv');
 
-        $this->createService($logger)->run(new FilebotJobMessage(
+        $result = $this->createService($logger)->run(new FilebotJobMessage(
             path: $path,
             label: 'process-noop',
         ));
@@ -249,7 +250,7 @@ SH;
         $logger = new InMemoryLogger();
         $path = $this->createFile('example.mkv');
 
-        $this->createService($logger)->run(new FilebotJobMessage(
+        $result = $this->createService($logger)->run(new FilebotJobMessage(
             path: $path,
             label: 'no-match-noop',
             mediaId: '73871',
@@ -265,6 +266,7 @@ SH;
         $completionRecord = reset($completionRecords);
         self::assertSame(3, $completionRecord['context']['exit_code']);
         self::assertSame('no_match', $completionRecord['context']['result']);
+        self::assertEquals(FilebotRunResult::skipped('No matching media was found.'), $result);
     }
 
     public function testRunTreatsExactDuplicateOnlyFailureAsSuccessfulNoop(): void
@@ -272,7 +274,7 @@ SH;
         $logger = new InMemoryLogger();
         $path = $this->createFile('example.mkv');
 
-        $this->createService($logger)->run(new FilebotJobMessage(
+        $result = $this->createService($logger)->run(new FilebotJobMessage(
             path: $path,
             label: 'duplicate-noop',
         ));
@@ -286,6 +288,20 @@ SH;
         $completionRecord = reset($completionRecords);
         self::assertSame(3, $completionRecord['context']['exit_code']);
         self::assertSame('noop', $completionRecord['context']['result']);
+        self::assertEquals(FilebotRunResult::skipped('Destination files already existed; no changes were made.'), $result);
+    }
+
+    public function testRunMarksTestModeJobsAsSkipped(): void
+    {
+        $path = $this->createFile('example.mkv');
+
+        $result = $this->createService(new InMemoryLogger())->run(new FilebotJobMessage(
+            path: $path,
+            label: 'tv',
+            action: 'test',
+        ));
+
+        self::assertEquals(FilebotRunResult::skipped('Test mode; no files were changed.'), $result);
     }
 
     public function testRunStillThrowsWhenDuplicateAndAnotherFailureAreReported(): void

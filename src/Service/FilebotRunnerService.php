@@ -4,6 +4,7 @@ namespace App\Service;
 
 use App\Command\FilebotCommandBuilder;
 use App\Message\FilebotJobMessage;
+use App\Model\FilebotRunResult;
 use App\Process\FilebotProcessOutputClassifier;
 use Psr\Log\LoggerInterface;
 use Psr\Log\LogLevel;
@@ -18,7 +19,7 @@ final readonly class FilebotRunnerService implements FilebotRunnerInterface
     ) {
     }
 
-    public function run(FilebotJobMessage $job): void
+    public function run(FilebotJobMessage $job): FilebotRunResult
     {
         $path = $job->path;
 
@@ -94,6 +95,20 @@ final readonly class FilebotRunnerService implements FilebotRunnerInterface
             'exit_code' => $exitCode,
             'result' => $result ?? 'processed',
         ]);
+
+        if ($job->action === 'test') {
+            return FilebotRunResult::skipped('Test mode; no files were changed.');
+        }
+
+        if ($isNoMatch) {
+            return FilebotRunResult::skipped('No matching media was found.');
+        }
+
+        if ($isNoop) {
+            return FilebotRunResult::skipped('Destination files already existed; no changes were made.');
+        }
+
+        return FilebotRunResult::completed();
     }
 
     /**

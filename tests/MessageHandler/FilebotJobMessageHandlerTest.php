@@ -4,6 +4,7 @@ namespace App\Tests\MessageHandler;
 
 use App\MessageHandler\FilebotJobMessageHandler;
 use App\Message\FilebotJobMessage;
+use App\Model\FilebotRunResult;
 use App\Service\FilebotRunnerInterface;
 use App\Tests\Support\InMemoryLogger;
 use PHPUnit\Framework\TestCase;
@@ -19,10 +20,12 @@ final class FilebotJobMessageHandlerTest extends TestCase
 
             public bool $called = false;
 
-            public function run(FilebotJobMessage $job): void
+            public function run(FilebotJobMessage $job): FilebotRunResult
             {
                 $this->called = true;
                 $this->job = $job;
+
+                return FilebotRunResult::completed();
             }
         };
 

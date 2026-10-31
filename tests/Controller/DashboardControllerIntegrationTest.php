@@ -131,4 +131,24 @@ final class DashboardControllerIntegrationTest extends WebTestCase
         self::assertSelectorTextContains('section[aria-labelledby="job-history-title"]', 'permission denied');
         self::assertSelectorTextContains('section[aria-labelledby="job-history-title"]', 'exit code 3');
     }
+
+    public function testDashboardShowsSkippedStatusAndReason(): void
+    {
+        $client = self::createClient();
+        $client->disableReboot();
+        $transport = new ListableInMemoryTransport();
+        self::getContainer()->set('messenger.transport.async', $transport);
+        self::getContainer()->set(FilebotJobPendingStatusReaderInterface::class, $transport);
+        $history = new InMemoryFilebotJobHistoryStore();
+        self::getContainer()->set(FilebotJobHistoryStoreInterface::class, $history);
+        $job = new FilebotJobMessage('/media/Already Exists', 'movie');
+        $history->recordQueued($job);
+        $history->markSkipped($job, 'Destination files already existed; no changes were made.');
+
+        $client->request('GET', '/');
+
+        self::assertResponseIsSuccessful();
+        self::assertSelectorTextContains('section[aria-labelledby="job-history-title"]', 'Skipped');
+        self::assertSelectorTextContains('section[aria-labelledby="job-history-title"]', 'Destination files already existed');
+    }
 }

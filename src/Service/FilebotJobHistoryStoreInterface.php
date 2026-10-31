@@ -15,6 +15,8 @@ interface FilebotJobHistoryStoreInterface
 
     public function markCompleted(FilebotJobMessage $job): void;
 
+    public function markSkipped(FilebotJobMessage $job, string $reason): void;
+
     public function markFailed(FilebotJobMessage $job, Throwable $exception): void;
 
     public function markDeleted(string $jobId): void;

@@ -162,7 +162,7 @@
 <section class="card content-card overflow-hidden mt-4" aria-labelledby="job-history-title">
     <div class="card-header bg-white border-0 px-4 pt-4 pb-3">
         <h2 id="job-history-title" class="h5 fw-bold mb-1">Recent job history</h2>
-        <p class="small text-secondary mb-0">{{ historyCount }} completed, failed, or deleted jobs from the last 7 days.</p>
+        <p class="small text-secondary mb-0">{{ historyCount }} finished jobs from the last 7 days.</p>
     </div>
     {% if not historyAvailable %}
         <div class="alert alert-warning rounded-0 border-0 mb-0" role="status">
@@ -186,6 +186,7 @@
                     {% for historyJob in historyJobs %}
                         {% set historyTone = {
                             completed: 'success',
+                            skipped: 'warning',
                             failed: 'danger',
                             deleted: 'secondary'
                         }[historyJob.status] ?? 'secondary' %}
@@ -204,6 +205,8 @@
                             <td>
                                 {% if historyJob.status == 'failed' %}
                                     <span class="small text-danger">{{ historyJob.error ?? 'Job failed without an error message.' }}</span>
+                                {% elseif historyJob.status == 'skipped' %}
+                                    <span class="small text-secondary">{{ historyJob.reason ?? 'Job was skipped.' }}</span>
                                 {% elseif historyJob.worker is defined and historyJob.worker is not null %}
                                     <span class="small text-secondary">Worker {{ historyJob.worker }}</span>
                                 {% else %}
