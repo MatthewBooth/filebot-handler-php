@@ -38,6 +38,19 @@ final class FilebotProcessOutputClassifierTest extends TestCase
         self::assertNull($classifier->classify(3));
     }
 
+    public function testExtractsSpecificReasonFromCodeThreeFailure(): void
+    {
+        $classifier = new FilebotProcessOutputClassifier();
+        $classifier->addLine('out', 'Failed to process [/input/episode.mkv] because of a permissions error');
+        $classifier->addLine('out', 'Finished without processing any files');
+
+        self::assertNull($classifier->classify(3));
+        self::assertSame(
+            'Failed to process [/input/episode.mkv] because of a permissions error',
+            $classifier->failureReason(),
+        );
+    }
+
     public function testRecognizesFilebotNoopExitCode(): void
     {
         self::assertSame('noop', (new FilebotProcessOutputClassifier())->classify(100));

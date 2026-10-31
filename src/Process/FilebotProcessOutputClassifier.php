@@ -16,11 +16,17 @@ final class FilebotProcessOutputClassifier
     private bool $foundNoMatchFailure = false;
     private bool $finishedWithoutProcessing = false;
     private int $exactCopyFailureCount = 0;
+    /** @var list<string> */
+    private array $failureLines = [];
 
     public function addLine(string $stream, string $line): void
     {
         if (trim($line) === '') {
             return;
+        }
+
+        if (preg_match('/^(?:Failed|Error|Exception)\b/i', $line) === 1) {
+            $this->failureLines[] = $line;
         }
 
         if ($stream === 'err') {
@@ -84,6 +90,17 @@ final class FilebotProcessOutputClassifier
             && $this->finishedWithoutProcessing
         ) {
             return 'noop';
+        }
+
+        return null;
+    }
+
+    public function failureReason(): ?string
+    {
+        foreach ($this->failureLines as $line) {
+            if (preg_match(self::EXACT_COPY_PATTERN, $line) !== 1) {
+                return substr($line, 0, 500);
+            }
         }
 
         return null;

@@ -293,7 +293,7 @@ SH;
         $path = $this->createFile('example.mkv');
 
         $this->expectException(\RuntimeException::class);
-        $this->expectExceptionMessage('FileBot command failed with exit code 3.');
+        $this->expectExceptionMessage('FileBot command failed with exit code 3. Failed to process [/input/other.mkv] because of a permissions error');
 
         $this->createService(new InMemoryLogger())->run(new FilebotJobMessage(
             path: $path,

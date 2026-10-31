@@ -6,6 +6,7 @@ use App\Message\FilebotJobMessage;
 use App\Service\FilebotJobHistoryStoreInterface;
 use App\Service\FilebotJobPendingStatusReaderInterface;
 use App\Tests\Support\InMemoryFilebotJobHistoryStore;
+use RuntimeException;
 use App\Tests\Support\ListableInMemoryTransport;
 use Symfony\Bundle\FrameworkBundle\Test\WebTestCase;
 use Symfony\Component\Messenger\Transport\InMemory\InMemoryTransport;
@@ -109,5 +110,25 @@ final class DashboardControllerIntegrationTest extends WebTestCase
         self::assertCount(2, $client->getCrawler()->filter('section[aria-labelledby="job-history-title"] tbody tr'));
         self::assertSelectorTextContains('section[aria-labelledby="job-history-title"]', 'History 12');
         self::assertSelectorExists('[data-dashboard-refresh-url-value="/dashboard/live?page=2"]');
+    }
+
+    public function testDashboardShowsExtractedFailureReason(): void
+    {
+        $client = self::createClient();
+        $client->disableReboot();
+        $transport = new ListableInMemoryTransport();
+        self::getContainer()->set('messenger.transport.async', $transport);
+        self::getContainer()->set(FilebotJobPendingStatusReaderInterface::class, $transport);
+        $history = new InMemoryFilebotJobHistoryStore();
+        self::getContainer()->set(FilebotJobHistoryStoreInterface::class, $history);
+        $job = new FilebotJobMessage('/media/Problem Movie', 'movie');
+        $history->recordQueued($job);
+        $history->markFailed($job, new RuntimeException('FileBot command failed with exit code 3. Could not move file: permission denied.'));
+
+        $client->request('GET', '/');
+
+        self::assertResponseIsSuccessful();
+        self::assertSelectorTextContains('section[aria-labelledby="job-history-title"]', 'permission denied');
+        self::assertSelectorTextContains('section[aria-labelledby="job-history-title"]', 'exit code 3');
     }
 }

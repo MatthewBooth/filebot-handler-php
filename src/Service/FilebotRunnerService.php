@@ -75,10 +75,13 @@ final readonly class FilebotRunnerService implements FilebotRunnerInterface
                 'exit_code' => $exitCode,
             ]);
 
-            throw new RuntimeException(
-                sprintf('FileBot command failed with exit code %d.', $exitCode ?? 1),
-                $exitCode ?? 1,
-            );
+            $failureReason = $classifier->failureReason();
+            $message = sprintf('FileBot command failed with exit code %d.', $exitCode ?? 1);
+            if (null !== $failureReason) {
+                $message .= ' ' . $failureReason;
+            }
+
+            throw new RuntimeException($message, $exitCode ?? 1);
         }
 
         $message = match (true) {
