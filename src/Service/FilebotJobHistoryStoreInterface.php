@@ -20,5 +20,7 @@ interface FilebotJobHistoryStoreInterface
     public function markDeleted(string $jobId): void;
 
     /** @return list<array<string, mixed>> */
-    public function recentTerminalJobs(int $limit): array;
+    public function recentTerminalJobs(int $limit, int $offset = 0): array;
+
+    public function countRecentTerminalJobs(): int;
 }

@@ -16,7 +16,7 @@ The API is available at `http://localhost:8080`. Check it with
 The job dashboard is available at `http://localhost:8080/`. It shows queued
 and processing jobs from the Messenger transport, including workers associated
 with pending jobs. It also shows the latest 50 completed, failed, or deleted
-jobs. History is retained in separate Redis keys for 48 hours after a job
+jobs. History is retained in separate Redis keys for 7 days after a job
 finishes, and the live queue and history sections refresh automatically every
 10 seconds. The Docker Compose Redis service enables append-only persistence;
 deployed Redis should also have persistence enabled to preserve history across

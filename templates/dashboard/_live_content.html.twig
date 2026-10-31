@@ -162,14 +162,14 @@
 <section class="card content-card overflow-hidden mt-4" aria-labelledby="job-history-title">
     <div class="card-header bg-white border-0 px-4 pt-4 pb-3">
         <h2 id="job-history-title" class="h5 fw-bold mb-1">Recent job history</h2>
-        <p class="small text-secondary mb-0">Latest 50 completed, failed, or deleted jobs; retained in Redis for 48 hours.</p>
+        <p class="small text-secondary mb-0">{{ historyCount }} completed, failed, or deleted jobs from the last 7 days.</p>
     </div>
     {% if not historyAvailable %}
         <div class="alert alert-warning rounded-0 border-0 mb-0" role="status">
             Job history is temporarily unavailable.
         </div>
     {% elseif historyJobs is empty %}
-        <div class="px-4 pb-4 small text-secondary">No finished jobs in the last 48 hours.</div>
+        <div class="px-4 pb-4 small text-secondary">No finished jobs in the last 7 days.</div>
     {% else %}
         <div class="table-responsive">
             <table class="table table-hover table-jobs mb-0">
@@ -204,7 +204,7 @@
                             <td>
                                 {% if historyJob.status == 'failed' %}
                                     <span class="small text-danger">{{ historyJob.error ?? 'Job failed without an error message.' }}</span>
-                                {% elseif historyJob.worker is not null %}
+                                {% elseif historyJob.worker is defined and historyJob.worker is not null %}
                                     <span class="small text-secondary">Worker {{ historyJob.worker }}</span>
                                 {% else %}
                                     <span class="small text-secondary">—</span>
@@ -215,6 +215,23 @@
                 </tbody>
             </table>
         </div>
+        {% if historyPageCount > 1 %}
+            <nav class="card-footer bg-white border-0 px-4 py-3" aria-label="Job history pages">
+                <ul class="pagination pagination-sm justify-content-end mb-0">
+                    <li class="page-item{% if historyPage == 1 %} disabled{% endif %}">
+                        <a class="page-link" href="{{ path('app_dashboard', {page: historyPage - 1}) }}"{% if historyPage == 1 %} aria-disabled="true" tabindex="-1"{% endif %}>Previous</a>
+                    </li>
+                    {% for pageNumber in 1..historyPageCount %}
+                        <li class="page-item{% if pageNumber == historyPage %} active{% endif %}">
+                            <a class="page-link" href="{{ path('app_dashboard', {page: pageNumber}) }}"{% if pageNumber == historyPage %} aria-current="page"{% endif %}>{{ pageNumber }}</a>
+                        </li>
+                    {% endfor %}
+                    <li class="page-item{% if historyPage == historyPageCount %} disabled{% endif %}">
+                        <a class="page-link" href="{{ path('app_dashboard', {page: historyPage + 1}) }}"{% if historyPage == historyPageCount %} aria-disabled="true" tabindex="-1"{% endif %}>Next</a>
+                    </li>
+                </ul>
+            </nav>
+        {% endif %}
     {% endif %}
 </section>
 </div>

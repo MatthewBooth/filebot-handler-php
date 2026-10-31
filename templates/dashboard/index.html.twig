@@ -30,7 +30,7 @@
 
         <div
             data-controller="dashboard-refresh"
-            data-dashboard-refresh-url-value="{{ path('app_dashboard_live') }}"
+            data-dashboard-refresh-url-value="{{ path('app_dashboard_live', {page: app.request.query.get('page', 1)}) }}"
             data-dashboard-refresh-interval-value="10000"
         >
             <p class="small text-secondary mb-3" role="status" aria-live="polite" data-dashboard-refresh-target="status">

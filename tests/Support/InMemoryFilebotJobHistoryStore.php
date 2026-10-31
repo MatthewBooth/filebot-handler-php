@@ -57,7 +57,7 @@ final class InMemoryFilebotJobHistoryStore implements FilebotJobHistoryStoreInte
         $this->markTerminal($jobId, ['status' => 'deleted']);
     }
 
-    public function recentTerminalJobs(int $limit): array
+    public function recentTerminalJobs(int $limit, int $offset = 0): array
     {
         $jobs = array_filter(
             $this->jobs,
@@ -65,7 +65,15 @@ final class InMemoryFilebotJobHistoryStore implements FilebotJobHistoryStoreInte
         );
         usort($jobs, static fn (array $first, array $second): int => strcmp($second['finishedAt'], $first['finishedAt']));
 
-        return array_slice($jobs, 0, $limit);
+        return array_slice($jobs, $offset, $limit);
+    }
+
+    public function countRecentTerminalJobs(): int
+    {
+        return count(array_filter(
+            $this->jobs,
+            static fn (array $job): bool => \in_array($job['status'] ?? null, ['completed', 'failed', 'deleted'], true),
+        ));
     }
 
     /** @param array<string, string> $fields */

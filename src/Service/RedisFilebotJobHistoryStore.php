@@ -11,7 +11,7 @@ use Throwable;
 
 final readonly class RedisFilebotJobHistoryStore implements FilebotJobHistoryStoreInterface
 {
-    private const int RETENTION_SECONDS = 172800;
+    private const int RETENTION_SECONDS = 604800;
     private const string PREFIX = 'filebot:job-history';
 
     public function __construct(private RedisConnectionFactory $connectionFactory)
@@ -73,14 +73,15 @@ final readonly class RedisFilebotJobHistoryStore implements FilebotJobHistorySto
         $this->markTerminal($jobId, ['status' => 'deleted']);
     }
 
-    public function recentTerminalJobs(int $limit): array
+    public function recentTerminalJobs(int $limit, int $offset = 0): array
     {
-        $limit = max(1, min($limit, 200));
+        $limit = max(1, $limit);
+        $offset = max(0, $offset);
         $redis = $this->connectionFactory->connect();
 
         try {
             $this->pruneTerminalIndex($redis, time() - self::RETENTION_SECONDS);
-            $jobIds = $redis->zRevRange(self::terminalIndexKey(), 0, $limit - 1);
+            $jobIds = $redis->zRevRange(self::terminalIndexKey(), $offset, $offset + $limit - 1);
             if (!\is_array($jobIds)) {
                 throw new RuntimeException('Redis did not return FileBot job history IDs.');
             }
@@ -115,6 +116,18 @@ final readonly class RedisFilebotJobHistoryStore implements FilebotJobHistorySto
             }
 
             return $history;
+        } finally {
+            $redis->close();
+        }
+    }
+
+    public function countRecentTerminalJobs(): int
+    {
+        $redis = $this->connectionFactory->connect();
+
+        try {
+            $this->pruneTerminalIndex($redis, time() - self::RETENTION_SECONDS);
+            return (int) $redis->zCard(self::terminalIndexKey());
         } finally {
             $redis->close();
         }
