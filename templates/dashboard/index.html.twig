@@ -6,7 +6,7 @@
     <nav class="navbar navbar-dark app-navbar">
         <div class="container-fluid dashboard-content px-3 px-lg-4">
             <a class="navbar-brand d-flex align-items-center gap-2 fw-semibold" href="{{ path('app_dashboard') }}">
-                <span class="brand-mark">F</span>
+                <span class="brand-mark"><img src="{{ asset('favicon.png') }}" alt=""></span>
                 <span>FileBot Handler</span>
             </a>
             <div class="d-flex align-items-center gap-3">
@@ -56,7 +56,7 @@
                             <div class="alert alert-danger d-none" role="alert" data-job-form-target="feedback"></div>
                             <div class="mb-3">
                                 <label class="form-label fw-semibold" for="create-job-path">Media path</label>
-                                <input class="form-control" id="create-job-path" name="path" type="text" placeholder="/torrents/Example.Movie.2024" required>
+                                <input class="form-control" id="create-job-path" name="path" type="text" value="/torrents/" placeholder="/torrents/Example.Movie.2024" required>
                                 <div class="form-text">Enter an absolute path visible to the API and worker containers.</div>
                             </div>
 

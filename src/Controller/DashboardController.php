@@ -59,19 +59,6 @@ final class DashboardController extends AbstractController
             $jobs,
             static fn (array $job): bool => $job['status'] === 'processing',
         ));
-        $workers = [];
-
-        foreach ($jobs as $job) {
-            if (!isset($job['worker'])) {
-                continue;
-            }
-
-            $workers[$job['worker']][] = [
-                'id' => $job['id'],
-                'path' => $job['message']['path'],
-            ];
-        }
-
         $historyAvailable = true;
         $historyJobs = [];
         $historyPageSize = 10;
@@ -93,8 +80,6 @@ final class DashboardController extends AbstractController
             'queueAvailable' => $queueAvailable,
             'queuedCount' => $queueAvailable ? count($jobs) - $processingCount : null,
             'processingCount' => $queueAvailable ? $processingCount : null,
-            'workerCount' => $queueAvailable ? count($workers) : null,
-            'workers' => $workers,
             'historyAvailable' => $historyAvailable,
             'historyJobs' => $historyJobs,
             'historyCount' => $historyCount,
