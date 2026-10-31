@@ -101,7 +101,7 @@ final class DashboardControllerIntegrationTest extends WebTestCase
         $client->request('GET', '/');
         self::assertResponseIsSuccessful();
         self::assertCount(10, $client->getCrawler()->filter('section[aria-labelledby="job-history-title"] tbody tr'));
-        self::assertSelectorTextContains('section[aria-labelledby="job-history-title"]', '12 completed');
+        self::assertSelectorTextContains('section[aria-labelledby="job-history-title"]', '12 finished jobs');
         self::assertSelectorExists('a[href="/?page=2"]');
         self::assertSelectorExists('[data-dashboard-refresh-url-value="/dashboard/live?page=1"]');
 
