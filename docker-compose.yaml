@@ -1,3 +1,31 @@
+x-worker: &worker
+    image: filebot-handler-worker:dev
+    build:
+        context: .
+        target: worker
+    user: "${HOST_UID:-1000}:${HOST_GID:-1000}"
+    working_dir: /app
+    restart: unless-stopped
+    volumes:
+        - ./:/app
+        - "${DOWNLOAD_VOL}:${TORRENTS_ROOT}:rw"
+        - "${STORAGE_VOL}:${STORAGE_ROOT}:rw"
+        - "${FILEBOT_VOL}:${FILEBOT_HOME}:rw"
+    environment:
+        APP_ENV: dev
+        HOME: "${FILEBOT_HOME}"
+        TZ: "${TZ:-UTC}"
+        FILEBOT_OPTS: "${FILEBOT_OPTS}"
+        FILEBOT_LICENCE_FILE: "${FILEBOT_LICENCE_FILE}"
+        AMC_UNSORTED: "${AMC_UNSORTED:-n}"
+        OPENSUBTITLES_USERNAME: "${OPENSUBTITLES_USERNAME:-}"
+        OPENSUBTITLES_PASSWORD: "${OPENSUBTITLES_PASSWORD:-}"
+    depends_on:
+        redis:
+            condition: service_healthy
+    networks:
+        - symfony
+
 services:
   php:
     image: filebot-handler-php:dev
@@ -24,32 +52,8 @@ services:
       - symfony
 
   worker:
-    image: filebot-handler-worker:dev
-    build:
-      context: .
-      target: worker
-    user: "${HOST_UID:-1000}:${HOST_GID:-1000}"
-    working_dir: /app
-    restart: unless-stopped
-    volumes:
-      - ./:/app
-      - "${DOWNLOAD_VOL}:${TORRENTS_ROOT}:rw"
-      - "${STORAGE_VOL}:${STORAGE_ROOT}:rw"
-      - "${FILEBOT_VOL}:${FILEBOT_HOME}:rw"
-    environment:
-      APP_ENV: dev
-      HOME: "${FILEBOT_HOME}"
-      TZ: "${TZ:-UTC}"
-      FILEBOT_OPTS: "${FILEBOT_OPTS}"
-      FILEBOT_LICENCE_FILE: "${FILEBOT_LICENCE_FILE}"
-      AMC_UNSORTED: "${AMC_UNSORTED:-n}"
-      OPENSUBTITLES_USERNAME: "${OPENSUBTITLES_USERNAME:-}"
-      OPENSUBTITLES_PASSWORD: "${OPENSUBTITLES_PASSWORD:-}"
-    depends_on:
-      redis:
-        condition: service_healthy
-    networks:
-      - symfony
+    <<: *worker
+    hostname: worker-1
 
   nginx:
     image: filebot-handler-nginx:dev

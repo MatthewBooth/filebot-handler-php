@@ -63,7 +63,6 @@
                             {% for workerJob in workerJobs %}
                                 <div class="small{% if not loop.first %} mt-1{% endif %}">
                                     <span class="text-secondary">{{ workerJob.path }}</span>
-                                    <code class="ms-1">{{ workerJob.id }}</code>
                                 </div>
                             {% endfor %}
                         </div>
@@ -86,7 +85,6 @@
         <table class="table table-hover table-jobs mb-0">
             <thead class="table-light">
                 <tr>
-                    <th scope="col">ID</th>
                     <th scope="col">Job</th>
                     <th scope="col">Type</th>
                     <th scope="col">Status</th>
@@ -96,9 +94,9 @@
             </thead>
             <tbody>
                 {% if not queueAvailable %}
-                    <tr><td colspan="6" class="text-center text-secondary py-5">Queue data could not be loaded.</td></tr>
+                    <tr><td colspan="5" class="text-center text-secondary py-5">Queue data could not be loaded.</td></tr>
                 {% elseif jobs is empty %}
-                    <tr><td colspan="6" class="text-center text-secondary py-5">There are no queued or processing jobs.</td></tr>
+                    <tr><td colspan="5" class="text-center text-secondary py-5">There are no queued or processing jobs.</td></tr>
                 {% else %}
                     {% for job in jobs %}
                         {% set labelTone = {
@@ -108,7 +106,6 @@
                             music: 'info'
                         }[job.message.label] ?? 'secondary' %}
                         <tr data-job-id="{{ job.id }}">
-                            <td><code>{{ job.id }}</code></td>
                             <td>
                                 <div class="fw-semibold text-truncate" title="{{ job.message.path }}">
                                     {{ job.message.path|trim('/')|split('/')|last }}
@@ -193,7 +190,7 @@
                             deleted: 'secondary'
                         }[historyJob.status] ?? 'secondary' %}
                         <tr>
-                            <td class="text-nowrap">{{ historyJob.finishedAt|date('Y-m-d H:i:s') }}</td>
+                            <td class="text-nowrap">{{ historyJob.finishedAt|date('j M Y, g:i a') }}</td>
                             <td>
                                 <div class="fw-semibold text-truncate" title="{{ historyJob.message.path }}">
                                     {{ historyJob.message.path|trim('/')|split('/')|last }}
@@ -201,7 +198,6 @@
                                 <div class="small text-secondary text-truncate" title="{{ historyJob.message.path }}">
                                     {{ historyJob.message.path }}
                                 </div>
-                                <code class="small">{{ historyJob.transportId ?? historyJob.id }}</code>
                             </td>
                             <td>{{ historyJob.message.label|capitalize }}</td>
                             <td><span class="badge text-bg-{{ historyTone }}">{{ historyJob.status|capitalize }}</span></td>
